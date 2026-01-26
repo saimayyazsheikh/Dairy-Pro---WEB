@@ -1,0 +1,536 @@
+{
+    "rules": {
+        ".read": true,
+        ".write": true,
+        "users": {
+            "$uid": {
+                ".read": "$uid === auth.uid",
+                ".write": "$uid === auth.uid"
+            }
+        },
+        "cattle": {
+            ".indexOn": [
+                "tagId",
+                "status",
+                "createdAt"
+            ],
+            "$cattleId": {
+                ".validate": "newData.hasChildren(['tagId'])",
+                "tagId": {
+                    ".validate": "newData.isString() && newData.val().length > 0"
+                },
+                "name": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "type": {
+                    ".validate": "newData.isString()"
+                },
+                "breed": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "gender": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "dob": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "purchasedYear": {
+                    ".validate": "!newData.exists() || newData.isString() || newData.isNumber()"
+                },
+                "status": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "weight": {
+                    ".validate": "!newData.exists() || newData.isNumber() || newData.isString()"
+                },
+                "bms": {
+                    ".validate": "!newData.exists() || newData.isNumber() || newData.isString()"
+                },
+                "motherId": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "fatherSemenCompany": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "location": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "vaccinationDate": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "vaccinationType": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "turnOfPregnancy": {
+                    ".validate": "!newData.exists() || newData.isNumber() || newData.isString()"
+                },
+                "inseminationDate": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "expectedDeliveryDate": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "updatedAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "production_logs": {
+            ".indexOn": [
+                "date",
+                "cowTag",
+                "createdAt"
+            ],
+            "$logId": {
+                ".validate": "newData.hasChildren(['date', 'liters'])",
+                "cowTag": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "cowId": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "date": {
+                    ".validate": "newData.isString()"
+                },
+                "session": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "liters": {
+                    ".validate": "newData.isNumber()"
+                },
+                "fat": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "snf": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "quality": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "note": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "health_records": {
+            ".indexOn": [
+                "date",
+                "cowTag",
+                "createdAt"
+            ],
+            "$recordId": {
+                ".validate": "newData.hasChildren(['date', 'recordType'])",
+                "cowTag": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "cowId": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "date": {
+                    ".validate": "newData.isString()"
+                },
+                "recordType": {
+                    ".validate": "newData.isString()"
+                },
+                "doctorName": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "diagnosis": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "treatment": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "vaccineName": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "symptoms": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "cost": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "medicineCost": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "doctorFee": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "nextDueDate": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "semenName": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "semenCompany": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "semenColor": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "expectedDeliveryDate": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "inventory": {
+            ".indexOn": [
+                "name",
+                "quantity",
+                "lowStockThreshold"
+            ],
+            "$itemId": {
+                ".validate": "newData.hasChildren(['name', 'quantity'])",
+                "name": {
+                    ".validate": "newData.isString()"
+                },
+                "category": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "subCategory": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "brand": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "feedType": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "quantity": {
+                    ".validate": "newData.isNumber()"
+                },
+                "unit": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "cost": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "supplier": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "lowStockThreshold": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "updatedAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "inventory_usage": {
+            ".indexOn": [
+                "itemId",
+                "date"
+            ],
+            "$usageId": {
+                ".validate": "newData.hasChildren(['itemId', 'quantity'])",
+                "itemId": {
+                    ".validate": "newData.isString()"
+                },
+                "itemName": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "quantity": {
+                    ".validate": "newData.isNumber()"
+                },
+                "unit": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "allocatedTo": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "note": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "date": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "inventory_templates": {
+            "$templateId": {
+                ".validate": "newData.hasChildren(['itemId', 'quantity'])",
+                "itemId": {
+                    ".validate": "newData.isString()"
+                },
+                "itemName": {
+                    ".validate": "newData.isString()"
+                },
+                "quantity": {
+                    ".validate": "newData.isNumber()"
+                },
+                "unit": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "isActive": {
+                    ".validate": "newData.isBoolean()"
+                },
+                "note": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "lastRunDate": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "createdAt": {
+                    ".validate": "newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "payroll_runs": {
+            "$month": {
+                "$empId": {
+                    ".validate": "newData.hasChildren(['amount', 'date'])",
+                    "amount": {
+                        ".validate": "newData.isNumber()"
+                    },
+                    "date": {
+                        ".validate": "newData.isString()"
+                    },
+                    "status": {
+                        ".validate": "newData.isString()"
+                    },
+                    "$other": {
+                        ".validate": false
+                    }
+                }
+            }
+        },
+        "expenses": {
+            ".read": "auth != null",
+            ".write": "auth != null",
+            ".indexOn": [
+                "referenceId",
+                "date"
+            ],
+            "$expenseId": {
+                ".validate": "newData.hasChildren(['date', 'category', 'amount'])",
+                "date": {
+                    ".validate": "newData.isString()"
+                },
+                "category": {
+                    ".validate": "newData.isString()"
+                },
+                "amount": {
+                    ".validate": "newData.isNumber()"
+                },
+                "description": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "referenceId": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "employees": {
+            ".indexOn": [
+                "name",
+                "role",
+                "createdAt"
+            ],
+            "$empId": {
+                ".validate": "newData.hasChildren(['name'])",
+                "name": {
+                    ".validate": "newData.isString()"
+                },
+                "role": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "contact": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "salary": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "dateJoined": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "updatedAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "doctors": {
+            ".indexOn": [
+                "name",
+                "specialization",
+                "createdAt"
+            ],
+            "$docId": {
+                ".validate": "newData.hasChildren(['name'])",
+                "name": {
+                    ".validate": "newData.isString()"
+                },
+                "specialization": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "contact": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "hospital": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "visitSchedule": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "updatedAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "milk_records": {
+            ".indexOn": [
+                "date",
+                "vendorId",
+                "createdAt"
+            ],
+            "$recordId": {
+                ".validate": "newData.hasChildren(['date', 'quantity', 'totalAmount'])",
+                "date": {
+                    ".validate": "newData.isString()"
+                },
+                "session": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "vendorId": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "vendorName": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "quantity": {
+                    ".validate": "newData.isNumber()"
+                },
+                "pricePerLiter": {
+                    ".validate": "newData.isNumber()"
+                },
+                "totalAmount": {
+                    ".validate": "newData.isNumber()"
+                },
+                "fat": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "snf": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "note": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "cow_performance_logs": {
+            ".indexOn": [
+                "date",
+                "cowId"
+            ],
+            "$logId": {
+                ".validate": "newData.hasChildren(['date', 'cowId'])",
+                "date": {
+                    ".validate": "newData.isString()"
+                },
+                "cowId": {
+                    ".validate": "newData.isString()"
+                },
+                "cowTag": {
+                    ".validate": "newData.isString()"
+                },
+                "morningYield": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "eveningYield": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "nightYield": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "avgFat": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "avgSnf": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        },
+        "vendors": {
+            ".indexOn": [
+                "name"
+            ],
+            "$vendorId": {
+                ".validate": "newData.hasChildren(['name'])",
+                "name": {
+                    ".validate": "newData.isString()"
+                },
+                "defaultPrice": {
+                    ".validate": "!newData.exists() || newData.isNumber()"
+                },
+                "contact": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "$other": {
+                    ".validate": false
+                }
+            }
+        }
+    }
+}
