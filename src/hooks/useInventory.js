@@ -129,7 +129,7 @@ export function useInventory() {
 
                 // 2. Log Usage
                 const usageRef = ref(rtdb, 'inventory_usage');
-                await push(usageRef, {
+                const newLogRef = await push(usageRef, {
                     itemId,
                     itemName: currentData.name,
                     quantity: parseFloat(quantity),
@@ -147,7 +147,8 @@ export function useInventory() {
                         category: "Feed/Inventory",
                         date: currentDateShort,
                         createdAt: currentDate,
-                        referenceId: itemId
+                        referenceId: newLogRef.key, // Link to unique Log ID
+                        type: 'Auto' // Protected State
                     });
                 }
             }
@@ -179,7 +180,24 @@ export function useInventory() {
                     });
                 }
 
-                // 3. Delete Log
+                // 3. Delete Associated Expense (Cascade)
+                const expensesRef = ref(rtdb, 'expenses');
+                // We need to query for the expense that has referenceId === logId
+                // Assuming we haven't indexed referenceId, we might need to filter manually if dataset is small, 
+                // but better to use a query if possible or just loop since we don't have indexes set up in rules.use 
+                // However, user has standard firebase. Let's try to find it.
+
+                // Fetch expenses (Optimization: In a real app index this. Here we fetch once).
+                const expSnapshot = await get(expensesRef);
+                if (expSnapshot.exists()) {
+                    const expData = expSnapshot.val();
+                    const expKeyToDelete = Object.keys(expData).find(key => expData[key].referenceId === logId);
+                    if (expKeyToDelete) {
+                        await remove(ref(rtdb, `expenses/${expKeyToDelete}`));
+                    }
+                }
+
+                // 4. Delete Log
                 await remove(logRef);
             }
         } catch (err) {
@@ -193,7 +211,8 @@ export function useInventory() {
             await push(ref(rtdb, 'inventory_templates'), {
                 ...data,
                 createdAt: new Date().toISOString(),
-                lastRunDate: "" // Never run
+                // If lastRunDate is passed (Start Tomorrow path), use it. Else default empty.
+                lastRunDate: data.lastRunDate || ""
             });
         } catch (err) {
             throw err;
@@ -218,13 +237,15 @@ export function useInventory() {
             if (!snapshot.exists()) return 0;
             const currentTemplates = snapshot.val();
 
-            // Fetch *Today's* Usage to prevent duplicates (Race Condition / State Lag Fix)
+            // Fetch *Today's* Usage to prevent duplicates
+            // VALIDATION: Check for ANY log for this item today (Manual or Auto) to prevent double-dipping.
             const usageSnapshot = await get(ref(rtdb, 'inventory_usage'));
             const usageData = usageSnapshot.val() || {};
-            const todaysAutoLogs = Object.values(usageData).filter(
-                log => log.date.startsWith(today) && log.note === "Recurring Auto-Log"
+            const todaysLogs = Object.values(usageData).filter(
+                log => log.date.startsWith(today)
             );
-            const processedItemIds = new Set(todaysAutoLogs.map(log => log.itemId));
+            // Set of ItemIDs that have ANY activity today
+            const processedItemIds = new Set(todaysLogs.map(log => log.itemId));
 
             for (const key in currentTemplates) {
                 const t = currentTemplates[key];
@@ -271,57 +292,48 @@ export function useInventory() {
             const usageData = usageSnap.val();
             const logs = Object.keys(usageData).map(key => ({ id: key, ...usageData[key] }));
 
-            // Group by Date + ItemID + Note
+            // Group ALL logs by Date + ItemID
             const groups = {};
             logs.forEach(log => {
-                if (log.note === "Recurring Auto-Log") {
-                    const dateKey = log.date.split("T")[0];
-                    const key = `${dateKey}_${log.itemId}`;
-                    if (!groups[key]) groups[key] = [];
-                    groups[key].push(log);
-                }
+                const dateKey = log.date.split("T")[0];
+                const key = `${dateKey}_${log.itemId}`;
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(log);
             });
 
-            // Process Groups with Duplicates
+            // Process Groups for Duplicates
             for (const key in groups) {
                 const groupLogs = groups[key];
-                if (groupLogs.length > 1) {
-                    // Sort by creation time (if possible, or just pick index 0 as keeper)
-                    // We keep the first one, delete the rest.
-                    const keeper = groupLogs[0];
-                    const duplicates = groupLogs.slice(1);
 
-                    for (const dup of duplicates) {
-                        // 1. Restore Stock (Revert the consumption)
-                        // logic similar to deleteUsageLog but manual here to avoid loop/overhead issues? 
-                        // Actually calling deleteUsageLog is safer but it might be async/slow in loop. 
-                        // Let's call deleteUsageLog as it handles stock restoration + log removal.
-                        await deleteUsageLog(dup.id);
-                        deletedCount++;
+                // If we have more than 1 log for the same item on the same day, checks priorities.
+                // Priority: Keep Manual Log > Keep First Auto Log.
+                if (groupLogs.length > 1) {
+
+                    // Filter out Auto Logs vs Manual Logs
+                    const autoLogs = groupLogs.filter(l => l.note === "Recurring Auto-Log");
+                    const manualLogs = groupLogs.filter(l => l.note !== "Recurring Auto-Log");
+
+                    let logsToDelete = [];
+
+                    if (manualLogs.length > 0) {
+                        // If Manual log exists, DELETE ALL Auto Logs for this day (Assumes Manual entry supercedes Auto)
+                        logsToDelete = [...autoLogs];
+
+                        // If multiple manual logs? We assume they are valid separate feedings unless exactly duplicate?
+                        // User request: "remove existing duplicate recurring logs".
+                        // So we only target autoLogs here if a manual exists.
+                    } else if (autoLogs.length > 1) {
+                        // If only Auto Logs exist but multiple? Keep one.
+                        // Sort by created/date? They usually have same Date string.
+                        // Just keep first, delete rest.
+                        logsToDelete = autoLogs.slice(1);
                     }
 
-                    // 2. Cleanup Expenses
-                    // Expenses don't have a direct link ID in the old logic? 
-                    // New logic has referenceId = itemId, not logId. 
-                    // We need to match by Description/Date/Amount.
-                    // Description format: "Consumption: {ItemName} ({Qty} {Unit}). Note: Recurring Auto-Log"
-                    // We will search for duplicates in expenses for this day/item.
-                    if (expenseSnap.exists()) {
-                        const expData = expenseSnap.val();
-                        const day = keeper.date.split("T")[0];
-                        const relatedExpenses = Object.keys(expData).map(k => ({ id: k, ...expData[k] }))
-                            .filter(e =>
-                                e.description.includes(keeper.itemName) &&
-                                e.description.includes("Recurring Auto-Log") &&
-                                e.date === day
-                            );
-
-                        if (relatedExpenses.length > 1) {
-                            // Keep one, delete others
-                            const expDuplicates = relatedExpenses.slice(1);
-                            const updates = {};
-                            expDuplicates.forEach(e => updates[e.id] = null);
-                            await update(expensesRef, updates);
+                    if (logsToDelete.length > 0) {
+                        for (const dup of logsToDelete) {
+                            // 1. Restore Stock & Delete Log
+                            await deleteUsageLog(dup.id);
+                            deletedCount++;
                         }
                     }
                 }

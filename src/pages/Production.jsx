@@ -3,12 +3,14 @@ import Layout from "../components/Layout";
 import { useCattle } from "../hooks/useCattle";
 import { useProduction } from "../hooks/useProduction";
 import { useToast } from "../contexts/ToastContext";
+import { useConfirmation } from "../contexts/ConfirmationContext";
 import { Calendar, Droplet, Clock, Activity, BarChart2, Trash2 } from "lucide-react";
 
 export default function Production() {
     const { cattle } = useCattle();
     const { logs, loading, addProductionLog, deleteProductionLog } = useProduction();
     const { addToast } = useToast();
+    const { confirm } = useConfirmation();
     const [submitting, setSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -78,10 +80,10 @@ export default function Production() {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this log?")) {
+        if (await confirm("Are you sure you want to delete this log?", "Confirm Deletion")) {
             try {
                 await deleteProductionLog(id);
-                addToast("Log deleted successfully", "success");
+                addToast("Log deleted successfully", "delete");
             } catch (error) {
                 addToast("Failed to delete log", "error");
             }

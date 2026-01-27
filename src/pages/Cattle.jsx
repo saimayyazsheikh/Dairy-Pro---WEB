@@ -2,9 +2,13 @@ import React, { useState } from "react";
 import Layout from "../components/Layout";
 import { useCattle } from "../hooks/useCattle";
 import { Plus, Search, Edit2, Trash2, X, Filter, Calendar, Activity, MapPin, Syringe, Dna, AlertCircle, ChevronDown } from "lucide-react";
+import { useToast } from "../contexts/ToastContext";
+import { useConfirmation } from "../contexts/ConfirmationContext";
 
 export default function Cattle() {
     const { cattle, loading, error, addCattle, updateCattle, deleteCattle } = useCattle();
+    const { addToast } = useToast();
+    const { confirm } = useConfirmation();
     const [searchTerm, setSearchTerm] = useState("");
     const [filterType, setFilterType] = useState("All");
     const [filterStatus, setFilterStatus] = useState("All");
@@ -180,24 +184,27 @@ export default function Cattle() {
 
             if (currentCow) {
                 await updateCattle(currentCow.id, payload);
+                addToast("Cattle record updated successfully", "success");
             } else {
                 await addCattle(payload);
+                addToast("New cattle added successfully", "success");
             }
             setIsModalOpen(false);
             // Optional: reset form or rely on Modal open/close to reset
         } catch (err) {
             console.error("Save error:", err);
-            alert(`Failed to save cattle record: ${err.message}`);
+            addToast(`Failed to save cattle record: ${err.message}`, "error");
         }
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this record?")) {
+        if (await confirm("This action cannot be undone. Are you sure you want to delete this record?", "Confirm Deletion")) {
             try {
                 await deleteCattle(id);
+                addToast("Record deleted successfully", "delete");
             } catch (err) {
                 console.error("Delete error:", err);
-                alert("Failed to delete record: " + err.message);
+                addToast("Failed to delete record: " + err.message, "error");
             }
         }
     };
@@ -219,7 +226,7 @@ export default function Cattle() {
             </div>
 
             {/* Search and Filters */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="sticky top-0 z-20 bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="md:col-span-2 flex items-center bg-gray-50 rounded-lg px-3 border border-gray-200">
                     <Search className="text-gray-400 mr-2" size={20} />
                     <input
@@ -421,57 +428,133 @@ export default function Cattle() {
                     </div>
 
                     {/* Mobile Card View */}
-                    <div className="md:hidden grid grid-cols-1 gap-4 p-4">
+                    <div className="md:hidden flex flex-col gap-4 p-4 pb-20">
                         {filteredCattle.map((cow) => (
-                            <div key={cow.id} className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm relative">
-                                <div className="flex justify-between items-start mb-2">
+                            <div key={cow.id} className="bg-white px-5 py-4 rounded-xl shadow-md border border-gray-100 flex flex-col relative">
+
+                                {/* Header Section */}
+                                <div className="mb-4 flex justify-between items-start">
                                     <div className="flex flex-col">
+                                        {/* ID & Mother Badge */}
                                         <div className="flex items-center gap-2">
-                                            <span className="font-bold text-lg text-gray-800">#{cow.tagId}</span>
+                                            <span className="text-xl font-bold text-gray-800">#{cow.tagId}</span>
                                             {cow.motherId && (
                                                 <span className="text-[10px] font-bold text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-100">
                                                     M: {cow.motherId}
                                                 </span>
                                             )}
                                         </div>
-                                        <span className="text-sm text-gray-500">{cow.name || "Unnamed"} • {cow.breed}</span>
+                                        <span className="text-xs text-gray-400 font-medium mt-1">{cow.name || "Unnamed"}</span>
                                     </div>
+
+                                    {/* Status Badges - Top Right */}
                                     <div className="flex flex-col items-end gap-1">
-                                        {(cow.status || "").split(', ').slice(0, 2).map((s, i) => (
-                                            <span key={i} className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold ${s === 'Milking' ? 'bg-green-100 text-green-700' :
+                                        {(cow.status || "").split(', ').slice(0, 3).map((s, i) => (
+                                            <span key={i} className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${s === 'Milking' ? 'bg-green-100 text-green-700' :
                                                 s.includes('Pregnant') ? 'bg-purple-100 text-purple-700' :
                                                     s === 'Sick' ? 'bg-red-100 text-red-700' :
-                                                        'bg-gray-100 text-gray-700'
+                                                        s === 'Ready to Inseminate' ? 'bg-blue-100 text-blue-700' :
+                                                            'bg-gray-100 text-gray-700'
                                                 }`}>
                                                 {s}
                                             </span>
                                         ))}
-                                        {(cow.status || "").split(', ').length > 2 && <span className="text-[10px] text-gray-400">+{((cow.status || "").split(', ').length - 2)} more</span>}
+                                        {(cow.status || "").split(', ').length > 3 && <span className="text-[10px] text-gray-400">+{((cow.status || "").split(', ').length - 3)} more</span>}
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-y-2 text-sm text-gray-600 mb-3 border-t border-b py-2 border-gray-100">
-                                    <div><span className="text-gray-400 text-xs block">Type</span>{cow.type}</div>
-                                    <div><span className="text-gray-400 text-xs block">Age</span>{calculateAge(cow.dob, cow.purchasedYear)}</div>
-                                    <div><span className="text-gray-400 text-xs block">Location</span>{cow.location}</div>
-                                    <div>
-                                        <span className="text-gray-400 text-xs block">Pregnancy</span>
-                                        {cow.expectedDeliveryDate ? (
-                                            <span className={isDueSoon(cow.expectedDeliveryDate) ? "text-red-500 font-bold" : "text-purple-600"}>
-                                                Due: {formatDate(cow.expectedDeliveryDate)}
-                                            </span>
-                                        ) : "-"}
+                                {/* Data Blocks Grid */}
+                                <div className="flex flex-col gap-4 mb-14"> {/* Increased bottom margin for actions */}
+
+                                    {/* IDENTITY Block */}
+                                    <div className="bg-gray-50 p-3.5 rounded-lg border border-gray-100">
+                                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">IDENTITY</span>
+                                        <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+                                            <div>
+                                                <span className="text-[10px] text-gray-400 block uppercase font-medium">Type</span>
+                                                <span className="text-sm font-bold text-gray-800">{cow.type}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] text-gray-400 block uppercase font-medium">Breed</span>
+                                                <span className="text-sm font-bold text-gray-800">{cow.breed}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] text-gray-400 block uppercase font-medium">Age</span>
+                                                <span className="text-sm font-bold text-gray-800">{calculateAge(cow.dob, cow.purchasedYear)}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[10px] text-gray-400 block uppercase font-medium">Gender</span>
+                                                <span className="text-sm font-bold text-gray-800">{cow.gender}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Insemination Block - Light Purple */}
+                                    <div className="bg-purple-50 p-3.5 rounded-lg border border-purple-100">
+                                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">INSEMINATION</span>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="text-sm font-medium text-gray-800">
+                                                {cow.inseminationDate ? (
+                                                    <span>{formatDate(cow.inseminationDate)} <span className="text-gray-500 font-normal">({cow.fatherSemenCompany || 'Unknown'})</span></span>
+                                                ) : <span className="text-gray-400 italic">No record</span>}
+                                            </div>
+                                            {/* Expected Delivery Highlight */}
+                                            {(cow.expectedDeliveryDate || (cow.inseminationDate && cow.status && (cow.status.includes('Pregnant') || cow.status.includes('Pregnant 1st')))) && (
+                                                <div className={`text-sm font-bold mt-1 ${isDueSoon(cow.expectedDeliveryDate) ? "text-red-600" : "text-purple-700"}`}>
+                                                    Expected: {cow.expectedDeliveryDate ? formatDate(cow.expectedDeliveryDate) : formatDate(new Date(new Date(cow.inseminationDate).setDate(new Date(cow.inseminationDate).getDate() + 275)).toISOString().split('T')[0])}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Metrics & Health - 2 Column Grid */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {/* Metrics Block */}
+                                        <div className="bg-gray-50 p-3.5 rounded-lg border border-gray-100">
+                                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">METRICS</span>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <span className="text-[10px] text-gray-400 block uppercase font-medium">Turn</span>
+                                                    <span className="text-sm font-bold text-gray-800">{cow.turnOfPregnancy || '-'}</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] text-gray-400 block uppercase font-medium">BMS</span>
+                                                    <span className="text-sm font-bold text-gray-800">{cow.bms || '-'}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Health Block */}
+                                        <div className="bg-gray-50 p-3.5 rounded-lg border border-gray-100">
+                                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-2 block">VACCINATION</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-gray-800 truncate">{cow.vaccinationType || '-'}</span>
+                                                <span className="text-xs text-gray-500">{formatDate(cow.vaccinationDate)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                {/* Footer: Location & Actions */}
+                                <div className="absolute bottom-4 left-5 right-5 flex justify-between items-end">
+                                    {/* Location */}
+                                    <div className="flex items-center gap-1.5 text-gray-600 bg-white px-2.5 py-1 rounded border border-gray-100 shadow-sm">
+                                        <MapPin size={14} className="text-gray-400" />
+                                        <span className="text-xs font-semibold">{cow.location}</span>
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex gap-2.5">
+                                        <button onClick={() => handleOpenModal(cow)} className="p-2.5 text-blue-600 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100 active:scale-95 transition-all shadow-sm">
+                                            <Edit2 size={18} />
+                                        </button>
+                                        <button onClick={() => handleDelete(cow.id)} className="p-2.5 text-red-600 bg-red-50 rounded-lg border border-red-100 hover:bg-red-100 active:scale-95 transition-all shadow-sm">
+                                            <Trash2 size={18} />
+                                        </button>
                                     </div>
                                 </div>
 
-                                <div className="flex justify-end gap-3 mt-2">
-                                    <button onClick={() => handleOpenModal(cow)} className="flex items-center text-blue-600 text-sm font-medium p-2 bg-blue-50 rounded-lg">
-                                        <Edit2 size={16} className="mr-1" /> Edit
-                                    </button>
-                                    <button onClick={() => handleDelete(cow.id)} className="flex items-center text-red-600 text-sm font-medium p-2 bg-red-50 rounded-lg">
-                                        <Trash2 size={16} className="mr-1" /> Delete
-                                    </button>
-                                </div>
                             </div>
                         ))}
                     </div>

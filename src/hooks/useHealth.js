@@ -57,7 +57,8 @@ export function useHealth() {
                     amount: parseFloat(data.medicineCost),
                     description: `Medicine: ${data.vaccineName || data.treatment || data.recordType} for ${data.cowTag}`,
                     referenceId: newRecordRef.key,
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    type: 'Auto'
                 });
             }
 
@@ -69,7 +70,8 @@ export function useHealth() {
                     amount: parseFloat(data.doctorFee),
                     description: `Dr. Fee: ${data.doctorName || 'Unknown'} - ${data.recordType} for ${data.cowTag}`,
                     referenceId: newRecordRef.key,
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    type: 'Auto'
                 });
             }
 
@@ -141,7 +143,8 @@ export function useHealth() {
                     amount: medCost,
                     description: `Medicine: ${data.vaccineName || data.treatment || data.recordType} for ${data.cowTag}`,
                     referenceId: id,
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    type: 'Auto'
                 });
             }
 
@@ -154,7 +157,8 @@ export function useHealth() {
                     amount: docFee,
                     description: `Dr. Fee: ${data.doctorName || 'Unknown'} - ${data.recordType} for ${data.cowTag}`,
                     referenceId: id,
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    type: 'Auto'
                 });
             }
 

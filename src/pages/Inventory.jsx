@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import Layout from "../components/Layout";
 import { useInventory } from "../hooks/useInventory";
 import { useToast } from "../contexts/ToastContext";
+import { useConfirmation } from "../contexts/ConfirmationContext";
 import { Package, AlertTriangle, Plus, Edit2, Trash2, X, Truck, ClipboardList, History, Repeat, Clock } from "lucide-react";
 
 export default function Inventory() {
     const { items, usageLogs, templates, loading, addItem, updateItem, deleteItem, logUsage, deleteUsageLog, addTemplate, deleteTemplate, runRecurringTemplates, cleanUpDuplicates } = useInventory();
     const { addToast } = useToast();
+    const { confirm } = useConfirmation();
 
     // Modals state
     const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -90,14 +92,7 @@ export default function Inventory() {
         isRecurring: false
     });
 
-    // Confirmation Modal State
-    const [confirmation, setConfirmation] = useState({
-        isOpen: false,
-        type: null, // 'item' or 'log'
-        id: null,
-        title: "",
-        message: ""
-    });
+
 
     // --- Item Handlers ---
     const handleOpenItemModal = (item = null) => {
@@ -141,10 +136,11 @@ export default function Inventory() {
                 lowStockThreshold: parseFloat(itemForm.lowStockThreshold)
             };
 
-            // Check if item name already exists (case insensitive)
+            // Check if item name AND sub-category matches (Strict Match)
             const existingItem = items.find(
                 item => item.name.toLowerCase() === itemForm.name.toLowerCase() &&
-                    (!currentItem || item.id !== currentItem.id) // Exclude current item if editing
+                    item.subCategory === itemForm.subCategory &&
+                    (!currentItem || item.id !== currentItem.id)
             );
 
             if (existingItem) {
@@ -214,14 +210,15 @@ export default function Inventory() {
         }));
     };
 
-    const handleDeleteClick = (id) => {
-        setConfirmation({
-            isOpen: true,
-            type: 'item',
-            id: id,
-            title: "Delete Item",
-            message: "Are you sure you want to delete this item? This action cannot be undone."
-        });
+    const handleDeleteClick = async (id) => {
+        if (await confirm("Are you sure you want to delete this item? This action cannot be undone.", "Delete Item")) {
+            try {
+                await deleteItem(id);
+                addToast("Item deleted", "success");
+            } catch (error) {
+                addToast("Failed to delete", "error");
+            }
+        }
     };
 
     // --- Usage Logging Handlers ---
@@ -246,7 +243,9 @@ export default function Inventory() {
                     quantity: qty,
                     unit: usedItem.unit,
                     isActive: true,
-                    note: usageForm.note || "Daily Recurring"
+                    note: usageForm.note || "Daily Recurring",
+                    // Path A: Mark as "run today" so next auto-log is Tomorrow.
+                    lastRunDate: new Date().toISOString().split("T")[0]
                 });
                 addToast("Recurring usage template saved.", "info");
             }
@@ -260,35 +259,20 @@ export default function Inventory() {
     };
 
     const handleDeleteTemplate = async (id) => {
-        if (window.confirm("Delete this recurring template?")) {
+        if (await confirm("Delete this recurring template?", "Confirm Deletion")) {
             await deleteTemplate(id);
             addToast("Template removed", "success");
         }
     };
 
-    const handleDeleteLogClick = (id) => {
-        setConfirmation({
-            isOpen: true,
-            type: 'log',
-            id: id,
-            title: "Delete Log & Restore Stock",
-            message: "Are you sure? This will delete the log and automatically restore the stock quantity."
-        });
-    };
-
-    const executeDelete = async () => {
-        try {
-            if (confirmation.type === 'item') {
-                await deleteItem(confirmation.id);
-                addToast("Item deleted", "success");
-            } else if (confirmation.type === 'log') {
-                await deleteUsageLog(confirmation.id);
+    const handleDeleteLogClick = async (id) => {
+        if (await confirm("Are you sure? This will delete the log and automatically restore the stock quantity.", "Delete Log & Restore Stock")) {
+            try {
+                await deleteUsageLog(id);
                 addToast("Log deleted & stock restored", "success");
+            } catch (error) {
+                addToast("Failed to delete", "error");
             }
-        } catch (error) {
-            addToast("Failed to delete", "error");
-        } finally {
-            setConfirmation({ isOpen: false, type: null, id: null, title: "", message: "" });
         }
     };
 
@@ -405,7 +389,7 @@ export default function Inventory() {
                     <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
                         <History className="mr-2 text-gray-500" /> Recent Usage Activity
                     </h2>
-                    <div className="overflow-x-auto">
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-left">
                             <thead className="bg-gray-50 border-b">
                                 <tr>
@@ -441,6 +425,49 @@ export default function Inventory() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Mobile Usage Activity Cards */}
+                    <div className="md:hidden grid grid-cols-1 gap-4">
+                        {usageLogs.length === 0 ? (
+                            <p className="text-center text-gray-500 py-4">No usage logs found.</p>
+                        ) : (
+                            usageLogs.slice(0, 5).map(log => {
+                                const isAuto = log.note === "Recurring Auto-Log";
+                                return (
+                                    <div key={log.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-3">
+                                        {/* Header */}
+                                        <div className="flex justify-between items-start border-b border-gray-50 pb-2">
+                                            <div>
+                                                <span className="text-xs font-bold text-gray-400 uppercase">{new Date(log.date).toLocaleDateString()}</span>
+                                                <h4 className="font-bold text-gray-800 text-md">{log.itemName}</h4>
+                                            </div>
+                                            <button
+                                                onClick={() => handleDeleteLogClick(log.id)}
+                                                className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+
+                                        {/* Consumption Block */}
+                                        <div className="bg-orange-50 p-3 rounded-lg border border-orange-100 flex justify-between items-center">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold text-orange-800 uppercase">USED</span>
+                                                <span className="font-bold text-red-600 text-lg">-{log.quantity} {log.unit}</span>
+                                            </div>
+                                            <div className="text-right">
+                                                <span className="text-[10px] font-bold text-orange-800 uppercase block mb-1">TYPE</span>
+                                                <div className="flex items-center justify-end text-orange-900 text-sm font-medium gap-1">
+                                                    {isAuto && <Clock size={14} />}
+                                                    {log.note}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
             </div>
@@ -513,50 +540,57 @@ export default function Inventory() {
                             </table>
                         </div>
 
-                        {/* Mobile Card View */}
+                        {/* Mobile Card View (Stock Levels) */}
                         <div className="md:hidden grid grid-cols-1 gap-4 p-4">
                             {items.map(item => {
                                 const isLow = item.quantity <= item.lowStockThreshold;
                                 return (
-                                    <div key={item.id} className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm">
-                                        <div className="flex justify-between items-start mb-2">
+                                    <div key={item.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3">
+                                        {/* Identity Header */}
+                                        <div className="flex justify-between items-start border-b border-gray-100 pb-2">
                                             <div>
-                                                <div className="flex items-center gap-2">
-                                                    <h3 className="font-bold text-gray-800">{item.name}</h3>
-                                                    {isLow && <AlertTriangle size={16} className="text-red-500" />}
-                                                </div>
+                                                <h3 className="font-bold text-gray-900 text-lg">{item.name}</h3>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${categoryOptions[item.category]?.color || "bg-gray-100 text-gray-700"}`}>
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${categoryOptions[item.category]?.color.replace("bg-", "bg-opacity-50 border-") || "bg-gray-100 text-gray-700 border-gray-200"}`}>
                                                         {item.category}
                                                     </span>
-                                                    {item.subCategory && <span className="text-xs text-gray-500">{item.subCategory}</span>}
+                                                    {item.subCategory && <span className="text-xs text-gray-500 font-medium">{item.subCategory}</span>}
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="font-bold text-gray-800 text-lg">
-                                                    {item.quantity} <span className="text-sm font-normal text-gray-500">{item.unit}</span>
+                                            {isLow && (
+                                                <div className="flex items-center text-red-600 bg-red-50 px-2 py-1 rounded-full border border-red-100">
+                                                    <AlertTriangle size={14} className="mr-1" />
+                                                    <span className="text-[10px] font-bold uppercase">Low Stock</span>
                                                 </div>
-                                                {isLow && <div className="text-xs text-red-500 font-bold">Low Stock</div>}
+                                            )}
+                                        </div>
+
+                                        {/* Vital Stats Block */}
+                                        <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                            <div>
+                                                <span className="block text-[10px] font-bold text-gray-400 uppercase mb-0.5">STOCK LEVEL</span>
+                                                <span className={`font-bold text-sm block ${isLow ? 'text-red-600' : 'text-gray-800'}`}>
+                                                    {item.quantity} <span className="font-normal text-gray-500">{item.unit}</span>
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="block text-[10px] font-bold text-gray-400 uppercase mb-0.5">UNIT COST</span>
+                                                <span className="font-medium text-gray-800 text-sm block">
+                                                    {item.cost ? `Rs ${item.cost}` : '-'}
+                                                </span>
+                                            </div>
+                                            <div className="col-span-2 border-t border-gray-200 mt-1 pt-2">
+                                                <span className="text-gray-500 text-xs">Reorder at: <span className="font-medium text-gray-900">{item.lowStockThreshold} {item.unit}</span></span>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 py-2 border-t border-b border-gray-50 my-2">
-                                            <div>
-                                                <span className="text-xs text-gray-400 block">Unit Cost</span>
-                                                {item.cost ? `Rs ${item.cost}` : '-'}
-                                            </div>
-                                            <div>
-                                                <span className="text-xs text-gray-400 block">Reorder Level</span>
-                                                {item.lowStockThreshold} {item.unit}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex justify-end gap-3 mt-2">
-                                            <button onClick={() => handleOpenItemModal(item)} className="p-2 bg-blue-50 text-blue-600 rounded-lg flex items-center text-sm font-medium">
-                                                <Edit2 size={16} className="mr-1" /> Edit
+                                        {/* Action Footer */}
+                                        <div className="flex justify-end gap-2 mt-1">
+                                            <button onClick={() => handleOpenItemModal(item)} className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition">
+                                                <Edit2 size={18} />
                                             </button>
-                                            <button onClick={() => handleDeleteClick(item.id)} className="p-2 bg-red-50 text-red-600 rounded-lg flex items-center text-sm font-medium">
-                                                <Trash2 size={16} className="mr-1" /> Delete
+                                            <button onClick={() => handleDeleteClick(item.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition">
+                                                <Trash2 size={18} />
                                             </button>
                                         </div>
                                     </div>
@@ -567,34 +601,7 @@ export default function Inventory() {
                 )}
             </div>
 
-            {/* Confirmation Modal */}
-            {confirmation.isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-                        <div className="flex flex-col items-center text-center">
-                            <div className="bg-red-100 p-3 rounded-full text-red-600 mb-4">
-                                <AlertTriangle size={32} />
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-800 mb-2">{confirmation.title}</h3>
-                            <p className="text-gray-600 mb-6">{confirmation.message}</p>
-                            <div className="flex gap-3 w-full">
-                                <button
-                                    onClick={() => setConfirmation({ ...confirmation, isOpen: false })}
-                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={executeDelete}
-                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+
 
             {/* Manage Templates Modal */}
             {isManageTemplatesOpen && (
@@ -634,7 +641,7 @@ export default function Inventory() {
             {/* Add/Edit Item Modal */}
             {isItemModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold">{currentItem ? "Edit Item" : "Add Inventory Item"}</h2>
                             <button onClick={() => setIsItemModalOpen(false)}><X size={24} className="text-gray-400" /></button>

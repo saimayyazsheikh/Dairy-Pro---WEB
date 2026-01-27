@@ -348,7 +348,13 @@
                 "referenceId": {
                     ".validate": "!newData.exists() || newData.isString()"
                 },
+                "type": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
                 "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "updatedAt": {
                     ".validate": "!newData.exists() || newData.isString()"
                 },
                 "$other": {
@@ -502,6 +508,9 @@
                     ".validate": "!newData.exists() || newData.isNumber()"
                 },
                 "createdAt": {
+                    ".validate": "!newData.exists() || newData.isString()"
+                },
+                "updatedAt": {
                     ".validate": "!newData.exists() || newData.isString()"
                 },
                 "$other": {

@@ -3,6 +3,8 @@ import Layout from "../components/Layout";
 import { useHealth } from "../hooks/useHealth";
 import { useCattle } from "../hooks/useCattle";
 import { useHR } from "../hooks/useHR";
+import { useToast } from "../contexts/ToastContext";
+import { useConfirmation } from "../contexts/ConfirmationContext";
 import { Activity, Syringe, HeartPulse, Stethoscope, Plus, X, Search, Calendar, Edit, Trash2, Filter, Check, ChevronDown } from "lucide-react";
 
 // Helper Component for Multi-Select
@@ -110,6 +112,8 @@ const MultiSelect = ({ options, selectedValues, onChange, label, placeholder }) 
 
 export default function Health() {
     const { records, loading, addHealthRecord, deleteHealthRecord, updateHealthRecord } = useHealth();
+    const { addToast } = useToast();
+    const { confirm } = useConfirmation();
     const { cattle } = useCattle();
     const { doctors } = useHR();
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -236,7 +240,7 @@ export default function Health() {
             const targets = formData.cowIds;
 
             if (targets.length === 0) {
-                alert("Please select at least one animal");
+                addToast("Please select at least one animal", "error");
                 return;
             }
 
@@ -335,16 +339,17 @@ export default function Health() {
             setIsModalOpen(false);
             setEditingId(null);
             setFormData(initialFormState);
+            addToast(editingId ? "Health record updated" : "Health record(s) added", "success");
         } catch (err) {
             console.error(err);
-            alert("Failed to save record");
+            addToast("Failed to save record", "error");
         }
     };
 
     return (
         <Layout>
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-                <div>
+            <div className="flex flex-col md:flex-row justify-between items-center mb-6">
+                <div className="text-center md:text-left">
                     <h1 className="text-3xl font-bold text-gray-800">Medical & Health</h1>
                     <p className="text-gray-600">Veterinary care, treatments, and vaccinations</p>
                 </div>
@@ -354,7 +359,7 @@ export default function Health() {
                         setFormData(initialFormState);
                         setIsModalOpen(true);
                     }}
-                    className="mt-4 md:mt-0 bg-red-500 text-white px-4 py-2 rounded-lg flex items-center hover:bg-red-600 transition"
+                    className="mt-4 md:mt-0 bg-red-500 text-white px-6 py-2 rounded-lg flex items-center hover:bg-red-600 transition w-full md:w-auto justify-center"
                 >
                     <Plus size={20} className="mr-2" />
                     Record Medical Event
@@ -374,9 +379,9 @@ export default function Health() {
                         />
                         <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
                     </div>
-                    <div className="flex gap-2 w-full md:w-auto">
+                    <div className="grid grid-cols-2 md:flex gap-2 w-full md:w-auto">
                         <select
-                            className="p-2 border rounded-lg outline-none cursor-pointer"
+                            className="p-2 border rounded-lg outline-none cursor-pointer col-span-2 md:col-span-1"
                             value={filters.type}
                             onChange={e => setFilters({ ...filters, type: e.target.value })}
                         >
@@ -387,14 +392,13 @@ export default function Health() {
                         </select>
                         <input
                             type="date"
-                            className="p-2 border rounded-lg outline-none"
+                            className="p-2 border rounded-lg outline-none w-full"
                             value={filters.startDate}
                             onChange={e => setFilters({ ...filters, startDate: e.target.value })}
                         />
-                        <span className="self-center text-gray-400">-</span>
                         <input
                             type="date"
-                            className="p-2 border rounded-lg outline-none"
+                            className="p-2 border rounded-lg outline-none w-full"
                             value={filters.endDate}
                             onChange={e => setFilters({ ...filters, endDate: e.target.value })}
                         />
@@ -402,7 +406,7 @@ export default function Health() {
                         {(filters.search || filters.type !== 'All' || filters.startDate || filters.endDate) && (
                             <button
                                 onClick={() => setFilters({ search: "", type: "All", startDate: "", endDate: "" })}
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg col-span-2 md:col-span-1 flex justify-center"
                                 title="Clear Filters"
                             >
                                 <X size={20} />
@@ -527,11 +531,12 @@ export default function Health() {
                                                         </button>
                                                         <button
                                                             onClick={async () => {
-                                                                if (window.confirm("Are you sure you want to delete this record?")) {
+                                                                if (await confirm("Are you sure you want to delete this record?")) {
                                                                     try {
                                                                         await deleteHealthRecord(record.id);
+                                                                        addToast("Record deleted successfully", "delete");
                                                                     } catch (err) {
-                                                                        alert("Failed to delete record");
+                                                                        addToast("Failed to delete record", "error");
                                                                     }
                                                                 }
                                                             }}
@@ -553,78 +558,102 @@ export default function Health() {
                     <div className="md:hidden grid grid-cols-1 gap-4 p-4">
                         {filteredRecords.map((record) => {
                             const animal = cattle.find(c => c.tagId === record.cowTag);
+                            const totalCost = (parseFloat(record.medicineCost) || 0) + (parseFloat(record.doctorFee) || 0);
+
                             return (
-                                <div key={record.id} className="bg-white p-4 rounded-lg border border-gray-100 shadow-sm relative">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center gap-2">
-                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${record.recordType === 'Vaccination' ? 'bg-green-100 text-green-700 border-green-200' :
-                                                    record.recordType === 'Insemination' ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                                                        'bg-blue-100 text-blue-700 border-blue-200'
-                                                    }`}>
-                                                    {record.recordType}
-                                                </span>
-                                                <span className="text-xs text-gray-500">{record.date.split("-").reverse().join("-")}</span>
-                                            </div>
-                                            <div className="mt-1 flex items-center gap-2">
-                                                <span className="font-bold text-gray-800 text-lg">
-                                                    {record.cowId === "ALL" ? "All Animals" : `#${record.cowTag}`}
-                                                </span>
-                                                {animal && animal.motherId && (
-                                                    <span className="text-[10px] font-bold text-pink-600 bg-pink-50 px-1 py-0.5 rounded">M: {animal.motherId}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button onClick={() => handleEdit(record)} className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                                                <Edit size={16} />
-                                            </button>
-                                            <button onClick={() => {
-                                                if (window.confirm("Delete record?")) deleteHealthRecord(record.id);
-                                            }} className="p-2 bg-red-50 text-red-600 rounded-lg">
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
+                                <div key={record.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col gap-3">
+                                    {/* Block 1: Event Header */}
+                                    <div className="flex justify-between items-center border-b border-gray-100 pb-2">
+                                        <span className="font-bold text-lg text-gray-900">
+                                            {record.cowId === "ALL" ? "All Animals" : `#${record.cowTag}`}
+                                        </span>
+                                        <span className="font-bold text-gray-700 text-sm">
+                                            {record.date.split("-").reverse().join("-")}
+                                        </span>
                                     </div>
 
-                                    <div className="py-2 border-t border-b border-gray-50 my-2 space-y-2">
+                                    {/* Block 2: Identity & Type */}
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">EVENT TYPE</span>
+                                        <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide border ${record.recordType === 'Vaccination' ? 'bg-green-100 text-green-700 border-green-200' :
+                                            record.recordType === 'Insemination' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                                'bg-blue-100 text-blue-700 border-blue-200'
+                                            }`}>
+                                            {record.recordType}
+                                        </span>
+                                    </div>
+
+                                    {/* Block 3: Clinical Details */}
+                                    <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-700 leading-relaxed border border-gray-100">
                                         {record.recordType === 'Vaccination' && (
-                                            <div className="flex justify-between">
-                                                <span className="text-sm text-gray-500">Vaccine</span>
-                                                <span className="text-sm font-medium text-green-700">{record.vaccineName}</span>
+                                            <div>
+                                                <span className="font-semibold text-green-800 block mb-1">{record.vaccineName}</span>
+                                                {record.nextDueDate && (
+                                                    <span className="text-orange-600 text-xs flex items-center">
+                                                        <Calendar size={12} className="mr-1" /> Due: {record.nextDueDate.split("-").reverse().join("-")}
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
                                         {record.recordType === 'Insemination' && (
-                                            <div className="flex justify-between">
-                                                <span className="text-sm text-gray-500">Semen</span>
-                                                <span className="text-sm font-medium text-purple-700">{record.semenName}</span>
+                                            <div>
+                                                <span className="font-semibold text-purple-800 block mb-1">{record.semenName} <span className="text-gray-500 text-xs font-normal">({record.semenCompany})</span></span>
+                                                {record.expectedDeliveryDate && (
+                                                    <span className="text-orange-600 text-xs flex items-center bg-orange-50 w-fit px-1.5 py-0.5 rounded mt-1">
+                                                        <Activity size={12} className="mr-1" /> Exp: {record.expectedDeliveryDate.split("-").reverse().join("-")}
+                                                    </span>
+                                                )}
                                             </div>
                                         )}
-                                        {record.doctorName && (
-                                            <div className="flex justify-between">
-                                                <span className="text-sm text-gray-500">Doctor</span>
-                                                <span className="text-sm font-medium text-gray-800">{record.doctorName}</span>
+                                        {record.recordType === 'Checkup' && (
+                                            <div className="flex flex-col gap-1">
+                                                <span className="font-semibold text-gray-800">{record.diagnosis || "No Diagnosis Recorded"}</span>
+                                                <span className="text-gray-600 italic text-xs">{record.treatment || "No Treatment Recorded"}</span>
                                             </div>
                                         )}
                                     </div>
 
-                                    <div className="flex justify-between items-center text-sm">
-                                        <div className="flex flex-col">
-                                            <span className="text-xs text-gray-400">Total Cost</span>
-                                            <span className="font-bold text-gray-800">
-                                                Rs {((parseFloat(record.medicineCost) || 0) + (parseFloat(record.doctorFee) || 0)).toLocaleString()}
+                                    {/* Block 4: Personnel & Cost */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <span className="block text-[10px] font-bold text-gray-400 uppercase mb-0.5">DOCTOR</span>
+                                            <span className="font-semibold text-gray-800 text-sm truncate block">
+                                                {record.doctorName || (
+                                                    <span className="text-gray-400 italic">Self</span>
+                                                )}
                                             </span>
                                         </div>
-                                        {record.nextDueDate && (
-                                            <div className="px-2 py-1 bg-orange-50 text-orange-700 rounded text-xs font-semibold flex items-center">
-                                                <Calendar size={12} className="mr-1" /> Due: {record.nextDueDate}
-                                            </div>
-                                        )}
-                                        {record.expectedDeliveryDate && (
-                                            <div className="px-2 py-1 bg-orange-50 text-orange-700 rounded text-xs font-semibold flex items-center">
-                                                <Activity size={12} className="mr-1" /> Exp: {record.expectedDeliveryDate}
-                                            </div>
-                                        )}
+                                        <div>
+                                            <span className="block text-[10px] font-bold text-gray-400 uppercase mb-0.5">COST</span>
+                                            <span className="font-bold text-green-700 text-sm font-mono block">
+                                                Rs {totalCost.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Block 5: Action Footer */}
+                                    <div className="flex justify-end gap-2 mt-1 border-t border-gray-100 pt-3">
+                                        <button
+                                            onClick={() => handleEdit(record)}
+                                            className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition"
+                                        >
+                                            <Edit size={18} />
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (await confirm("Delete this medical record?", "Confirm Deletion")) {
+                                                    try {
+                                                        await deleteHealthRecord(record.id);
+                                                        addToast("Record deleted successfully", "delete");
+                                                    } catch (err) {
+                                                        addToast("Failed to delete record", "error");
+                                                    }
+                                                }
+                                            }}
+                                            className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
                                     </div>
                                 </div>
                             );

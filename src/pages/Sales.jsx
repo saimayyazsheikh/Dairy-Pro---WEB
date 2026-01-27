@@ -2,11 +2,13 @@ import React, { useState, useMemo } from "react";
 import Layout from "../components/Layout";
 import { useSales } from "../hooks/useSales";
 import { useToast } from "../contexts/ToastContext";
+import { useConfirmation } from "../contexts/ConfirmationContext";
 import { Calendar, DollarSign, TrendingUp, ShoppingBag, Clock, FileText, Trash2, Banknote } from "lucide-react";
 
 export default function Sales() {
     const { sales, loading, addSaleRecord, deleteSaleRecord } = useSales();
     const { addToast } = useToast();
+    const { confirm } = useConfirmation();
     const [submitting, setSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
@@ -78,10 +80,10 @@ export default function Sales() {
     };
 
     const handleDelete = async (id) => {
-        if (window.confirm("Are you sure you want to delete this sale record?")) {
+        if (await confirm("Are you sure you want to delete this sale record?", "Confirm Deletion")) {
             try {
                 await deleteSaleRecord(id);
-                addToast("Sale record deleted successfully", "success");
+                addToast("Sale record deleted successfully", "delete");
             } catch (error) {
                 addToast("Failed to delete record", "error");
             }
@@ -227,45 +229,90 @@ export default function Sales() {
                     {loading ? (
                         <p className="text-center text-gray-500 py-8">Loading history...</p>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead className="bg-gray-50 border-b">
-                                    <tr>
-                                        <th className="p-3 font-semibold text-gray-600">Date</th>
-                                        <th className="p-3 font-semibold text-gray-600">Buyer</th>
-                                        <th className="p-3 font-semibold text-gray-600">Qty (L)</th>
-                                        <th className="p-3 font-semibold text-gray-600">Rate</th>
-                                        <th className="p-3 font-semibold text-gray-600">Total</th>
-                                        <th className="p-3 font-semibold text-gray-600">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {sales.length === 0 ? (
+                        <>
+                            {/* Desktop Table View */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead className="bg-gray-50 border-b">
                                         <tr>
-                                            <td colSpan="5" className="p-8 text-center text-gray-500">No sales record found.</td>
+                                            <th className="p-3 font-semibold text-gray-600">Date</th>
+                                            <th className="p-3 font-semibold text-gray-600">Buyer</th>
+                                            <th className="p-3 font-semibold text-gray-600">Qty (L)</th>
+                                            <th className="p-3 font-semibold text-gray-600">Rate</th>
+                                            <th className="p-3 font-semibold text-gray-600">Total</th>
+                                            <th className="p-3 font-semibold text-gray-600">Actions</th>
                                         </tr>
-                                    ) : (
-                                        sales.map((sale) => (
-                                            <tr key={sale.id} className="border-b hover:bg-gray-50">
-                                                <td className="p-3 text-gray-800">{sale.date}</td>
-                                                <td className="p-3 text-gray-600">{sale.buyer || '-'}</td>
-                                                <td className="p-3 font-medium">{sale.liters} L</td>
-                                                <td className="p-3 text-gray-600">Rs {sale.rate}</td>
-                                                <td className="p-3 font-bold text-green-600">Rs {sale.totalAmount.toLocaleString()}</td>
-                                                <td className="p-3">
-                                                    <button
-                                                        onClick={() => handleDelete(sale.id)}
-                                                        className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </td>
+                                    </thead>
+                                    <tbody>
+                                        {sales.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="6" className="p-8 text-center text-gray-500">No sales record found.</td>
                                             </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                                        ) : (
+                                            sales.map((sale) => (
+                                                <tr key={sale.id} className="border-b hover:bg-gray-50">
+                                                    <td className="p-3 text-gray-800">{sale.date}</td>
+                                                    <td className="p-3 text-gray-600">{sale.buyer || '-'}</td>
+                                                    <td className="p-3 font-medium">{sale.liters} L</td>
+                                                    <td className="p-3 text-gray-600">Rs {sale.rate}</td>
+                                                    <td className="p-3 font-bold text-green-600">Rs {sale.totalAmount.toLocaleString()}</td>
+                                                    <td className="p-3">
+                                                        <button
+                                                            onClick={() => handleDelete(sale.id)}
+                                                            className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Mobile Card View */}
+                            <div className="md:hidden grid grid-cols-1 gap-4">
+                                {sales.length === 0 ? (
+                                    <p className="text-center text-gray-500 py-4">No sales record found.</p>
+                                ) : (
+                                    sales.map((sale) => (
+                                        <div key={sale.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-3">
+                                            {/* Header */}
+                                            <div className="flex justify-between items-start border-b border-gray-50 pb-2">
+                                                <div>
+                                                    <span className="text-xs font-bold text-gray-400 uppercase">{new Date(sale.date).toLocaleDateString()}</span>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className="font-bold text-gray-800 text-md">{sale.buyer || "Unknown Buyer"}</span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => handleDelete(sale.id)}
+                                                    className="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+
+                                            {/* Stats Block */}
+                                            <div className="grid grid-cols-2 gap-3 bg-green-50 p-3 rounded-lg border border-green-100">
+                                                <div>
+                                                    <span className="block text-[10px] font-bold text-green-800 uppercase mb-0.5">SOLD</span>
+                                                    <span className="font-bold text-gray-800 text-lg">{sale.liters} <span className="text-sm font-normal text-gray-500">L</span></span>
+                                                </div>
+                                                <div>
+                                                    <span className="block text-[10px] font-bold text-green-800 uppercase mb-0.5">TOTAL</span>
+                                                    <span className="font-bold text-green-700 text-lg">Rs {sale.totalAmount.toLocaleString()}</span>
+                                                </div>
+                                                <div className="col-span-2 border-t border-green-200 mt-1 pt-1 flex justify-between items-center">
+                                                    <span className="text-xs text-green-700">Rate: Rs {sale.rate}/L</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </>
                     )}
                 </div>
             </div>

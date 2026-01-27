@@ -50,9 +50,7 @@ export function useHR() {
         // Fetch Payroll Status for Current Month
         const unsubPayroll = onValue(payrollRef, (snapshot) => {
             const data = snapshot.val() || {};
-            const statusMap = {};
-            Object.keys(data).forEach(empId => statusMap[empId] = true);
-            setPayrollStatus(statusMap);
+            setPayrollStatus(data); // Store full object: { empId: { amount, date, status } }
         });
 
         // Fetch Expenses to Calculate Doctor Totals
@@ -67,11 +65,17 @@ export function useHR() {
                         const firstPart = exp.description.split(" - ")[0]; // "Dr. Fee: [Name]"
                         const docName = firstPart.replace("Dr. Fee: ", "").trim();
                         if (docName) {
-                            stats[docName] = (stats[docName] || 0) + (parseFloat(exp.amount) || 0);
+                            if (!stats[docName]) {
+                                stats[docName] = { amount: 0, lastVisit: "" };
+                            }
+                            stats[docName].amount += (parseFloat(exp.amount) || 0);
+
+                            // Update Last Visit if this expense is newer
+                            if (!stats[docName].lastVisit || exp.date > stats[docName].lastVisit) {
+                                stats[docName].lastVisit = exp.date;
+                            }
                         }
                     }
-                    // Fallback / Legacy (Optional: disable if you want strict separation)
-                    // else if (exp.category === "Medical" && exp.description.includes("Vet Visit:")) ...
                 });
             }
             setDoctorStats(stats);
@@ -87,9 +91,49 @@ export function useHR() {
     }, []);
 
     // --- Employee Actions ---
+    // --- Employee Actions ---
     const addEmployee = async (data) => {
-        await push(ref(rtdb, 'employees'), { ...data, createdAt: new Date().toISOString() });
+        const newRef = push(ref(rtdb, 'employees'));
+        const newId = newRef.key;
+        const today = new Date();
+        const createdData = { ...data, createdAt: today.toISOString() };
+
+        await update(newRef, createdData);
+
+        // Immediate "Sign-on" Expense Trigger (If not 1st of month)
+        // User Requirement: "Initial Salary... only if current date is not already the 1st"
+        let salaryLogged = false;
+        if (today.getDate() !== 1) {
+            const salaryAmount = parseFloat(data.salary ? data.salary.toString().replace(/[^0-9.]/g, '') : "0");
+
+            if (salaryAmount > 0) {
+                const currentMonth = today.toISOString().slice(0, 7); // YYYY-MM
+                const dateStr = today.toISOString().split("T")[0];
+                const monthName = today.toLocaleString('default', { month: 'short', year: 'numeric' });
+
+                // 1. Log Expense
+                await push(ref(rtdb, 'expenses'), {
+                    date: dateStr,
+                    category: "Salaries",
+                    amount: salaryAmount,
+                    description: `[Auto] Monthly Salary - ${data.name} (${monthName})`,
+                    createdAt: today.toISOString(),
+                    referenceId: newId, // Critical for duplicate checks
+                    type: 'Auto'
+                });
+
+                // 2. Mark as Paid in Validation Ledger
+                await update(ref(rtdb, `payroll_runs/${currentMonth}/${newId}`), {
+                    amount: salaryAmount,
+                    date: dateStr,
+                    status: "Paid"
+                });
+                salaryLogged = true;
+            }
+        }
+        return salaryLogged;
     };
+
     const updateEmployee = async (id, data) => {
         await update(ref(rtdb, `employees/${id}`), { ...data, updatedAt: new Date().toISOString() });
     };
@@ -109,37 +153,66 @@ export function useHR() {
     };
 
     const runMonthlyPayroll = async () => {
-        const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-        const today = new Date().toISOString().split("T")[0];
+        const now = new Date();
+        const currentMonth = now.toISOString().slice(0, 7); // YYYY-MM
+        const todayStr = now.toISOString().split("T")[0];
+        const monthName = now.toLocaleString('default', { month: 'short', year: 'numeric' });
+
+        // "1st of Month" Rule Check (User: "On the 1st... loop")
+        // We run this check anytime, but we only auto-pay if valid.
+        // The calling component handles the "when to call" (usually on mount), 
+        // but we assume this function is idempotent and safe to call anytime.
+
         let processedCount = 0;
 
         try {
-            // Already have employees state, assuming it's fresh enough or fetch fresh?
-            // Safer to fetch fresh for critical financial op, but state is synced via websocket.
-            // Let's iterate current employees.
+            // Fetch Expenses for "Double-Entry Check"
+            const expSnapshot = await get(ref(rtdb, 'expenses'));
+            const expensesData = expSnapshot.val() || {};
+            const expensesList = Object.values(expensesData);
+
             for (const emp of employees) {
-                // Check if already paid
+                // 1. Ledger Check (Fast)
                 if (payrollStatus[emp.id]) continue;
 
+                // 2. Double-Entry Check (Deep check in Expenses table)
+                // Look for expense with same referenceId in current month
+                const alreadyPaidInExpenses = expensesList.some(exp =>
+                    exp.referenceId === emp.id &&
+                    exp.category === "Salaries" &&
+                    exp.date.startsWith(currentMonth)
+                );
+
+                if (alreadyPaidInExpenses) {
+                    // Sync Ledger if missing (Data integrity fix)
+                    await update(ref(rtdb, `payroll_runs/${currentMonth}/${emp.id}`), {
+                        amount: 0,
+                        date: todayStr,
+                        status: "Paid (Found in Expenses)"
+                    });
+                    continue;
+                }
+
                 // Parse Salary
-                // Salary field might be "40000" or "40,000" or "40000 PKR". Need to clean.
                 const rawSalary = emp.salary ? emp.salary.toString().replace(/[^0-9.]/g, '') : "0";
                 const salaryAmount = parseFloat(rawSalary);
 
                 if (salaryAmount > 0) {
-                    // 1. Create Expense
+                    // 3. Create Expense
                     await push(ref(rtdb, 'expenses'), {
-                        date: today,
+                        date: todayStr,
                         category: "Salaries",
                         amount: salaryAmount,
-                        description: `Monthly Salary - ${emp.name}`,
-                        createdAt: new Date().toISOString()
+                        description: `[Auto] Monthly Salary - ${emp.name} (${monthName})`,
+                        createdAt: now.toISOString(),
+                        referenceId: emp.id,
+                        type: 'Auto'
                     });
 
-                    // 2. Mark as Paid
+                    // 4. Mark as Paid
                     await update(ref(rtdb, `payroll_runs/${currentMonth}/${emp.id}`), {
                         amount: salaryAmount,
-                        date: today,
+                        date: todayStr,
                         status: "Paid"
                     });
                     processedCount++;

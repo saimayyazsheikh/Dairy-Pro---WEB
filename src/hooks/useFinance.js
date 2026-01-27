@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ref, onValue, push, remove } from "firebase/database";
+import { ref, onValue, push, remove, update } from "firebase/database";
 import { rtdb } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -37,10 +37,24 @@ export function useFinance() {
             await push(expensesRef, {
                 ...expenseData,
                 date: expenseData.date || new Date().toISOString(),
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                type: 'Manual' // Default for direct additions
             });
         } catch (error) {
             console.error("Error adding expense:", error);
+            throw error;
+        }
+    };
+
+    const updateExpense = async (id, updates) => {
+        try {
+            const expenseRef = ref(rtdb, `expenses/${id}`);
+            await update(expenseRef, {
+                ...updates,
+                updatedAt: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error("Error updating expense:", error);
             throw error;
         }
     };
@@ -59,6 +73,7 @@ export function useFinance() {
         expenses,
         loading,
         addExpense,
+        updateExpense,
         deleteExpense
     };
 }

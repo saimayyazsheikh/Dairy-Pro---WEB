@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ToastProvider } from "./contexts/ToastContext";
+import { ConfirmationProvider } from "./contexts/ConfirmationContext";
 import PrivateRoute from "./components/PrivateRoute";
 
 // Lazy Load Pages to isolate crashes
@@ -25,69 +26,71 @@ function App() {
     <Router>
       <AuthProvider>
         <ToastProvider>
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="/"
-                element={
-                  <PrivateRoute>
-                    <Dashboard />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/cattle"
-                element={
-                  <PrivateRoute>
-                    <Cattle />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/milk"
-                element={
-                  <PrivateRoute>
-                    <Milk />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/health"
-                element={
-                  <PrivateRoute>
-                    <Health />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/inventory"
-                element={
-                  <PrivateRoute>
-                    <Inventory />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/hr"
-                element={
-                  <PrivateRoute>
-                    <HR />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/finance"
-                element={
-                  <PrivateRoute>
-                    <Finance />
-                  </PrivateRoute>
-                }
-              />
-              {/* Default redirect for unknown routes */}
-              <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </Suspense>
+          <ConfirmationProvider>
+            <Suspense fallback={<LoadingFallback />}>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="/"
+                  element={
+                    <PrivateRoute>
+                      <Dashboard />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/cattle"
+                  element={
+                    <PrivateRoute>
+                      <Cattle />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/milk"
+                  element={
+                    <PrivateRoute>
+                      <Milk />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/health"
+                  element={
+                    <PrivateRoute>
+                      <Health />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/inventory"
+                  element={
+                    <PrivateRoute>
+                      <Inventory />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/hr"
+                  element={
+                    <PrivateRoute>
+                      <HR />
+                    </PrivateRoute>
+                  }
+                />
+                <Route
+                  path="/finance"
+                  element={
+                    <PrivateRoute>
+                      <Finance />
+                    </PrivateRoute>
+                  }
+                />
+                {/* Default redirect for unknown routes */}
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </Suspense>
+          </ConfirmationProvider>
         </ToastProvider>
       </AuthProvider>
     </Router>

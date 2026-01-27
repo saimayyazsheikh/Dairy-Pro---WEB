@@ -145,8 +145,7 @@ export function useMilk() {
         try {
             const perfRef = ref(rtdb, `cow_performance_logs/${id}`);
             await update(perfRef, {
-                ...data,
-                updatedAt: new Date().toISOString()
+                ...data
             });
         } catch (err) {
             throw err;

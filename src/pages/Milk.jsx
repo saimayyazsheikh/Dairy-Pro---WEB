@@ -3,6 +3,7 @@ import Layout from "../components/Layout";
 import { useMilk } from "../hooks/useMilk";
 import { useCattle } from "../hooks/useCattle";
 import { useToast } from "../contexts/ToastContext";
+import { useConfirmation } from "../contexts/ConfirmationContext";
 import {
     Droplet, DollarSign, Calendar, TrendingUp,
     FileText, Save, Trash2, User, ChevronDown, Plus, Download, Filter, FileSpreadsheet, FileCode
@@ -19,6 +20,7 @@ export default function Milk() {
     } = useMilk();
     const { cattle } = useCattle();
     const { addToast } = useToast();
+    const { confirm } = useConfirmation();
 
     const [activeTab, setActiveTab] = useState("daily"); // daily | monthly
     const [submitting, setSubmitting] = useState(false);
@@ -210,17 +212,17 @@ export default function Milk() {
 
             if (editingPerformanceId) {
                 await updatePerformanceLog(editingPerformanceId, payload);
-                addToast("Monthly log updated!", "success");
+                addToast("Performance record updated successfully", "success");
             } else {
                 await addPerformanceLog(payload);
-                addToast("Monthly log added!", "success");
+                addToast("Performance record added successfully", "success");
             }
 
             setMonthlyForm(initialMonthlyState);
             setEditingPerformanceId(null);
         } catch (err) {
             console.error("Monthly Log Error:", err);
-            addToast("Failed to save monthly log", "error");
+            addToast("Failed to save monthly log: " + err.message, "error");
         } finally {
             setSubmitting(false);
         }
@@ -228,11 +230,11 @@ export default function Milk() {
 
     const handleEditPerformanceLog = (log) => {
         setMonthlyForm({
-            date: log.date,
-            cowId: log.cowId,
-            morningYield: log.morningYield || "",
-            eveningYield: log.eveningYield || "",
-            nightYield: log.nightYield || "",
+            date: log.date || "",
+            cowId: log.cowId || "",
+            morningYield: (log.morningYield !== undefined && log.morningYield !== null) ? log.morningYield : "",
+            eveningYield: (log.eveningYield !== undefined && log.eveningYield !== null) ? log.eveningYield : "",
+            nightYield: (log.nightYield !== undefined && log.nightYield !== null) ? log.nightYield : "",
         });
         setEditingPerformanceId(log.id);
         // Scroll to form (optional, simplified for now)
@@ -394,10 +396,19 @@ export default function Milk() {
         }
     };
 
-    const handleDeleteRecord = async (id) => {
-        if (window.confirm("Are you sure you want to delete this record?")) {
-            await deleteMilkRecord(id);
-            addToast("Record deleted", "success");
+    const handleDeleteRecord = async (id, type = 'daily') => {
+        if (await confirm("This action cannot be undone. Are you sure you want to delete this record?", "Confirm Deletion")) {
+            try {
+                if (type === 'monthly') {
+                    await deletePerformanceLog(id);
+                } else {
+                    await deleteMilkRecord(id);
+                }
+                addToast("Record deleted successfully", "delete");
+            } catch (err) {
+                console.error("Delete error:", err);
+                addToast("Failed to delete record", "error");
+            }
         }
     }
 
