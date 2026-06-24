@@ -1,7 +1,5 @@
 {
     "rules": {
-        ".read": true,
-        ".write": true,
         "users": {
             "$uid": {
                 ".read": "$uid === auth.uid",
@@ -9,6 +7,8 @@
             }
         },
         "cattle": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             ".indexOn": [
                 "tagId",
                 "status",
@@ -82,6 +82,8 @@
             }
         },
         "production_logs": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             ".indexOn": [
                 "date",
                 "cowTag",
@@ -125,6 +127,8 @@
             }
         },
         "health_records": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             ".indexOn": [
                 "date",
                 "cowTag",
@@ -192,6 +196,8 @@
             }
         },
         "inventory": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             ".indexOn": [
                 "name",
                 "quantity",
@@ -241,6 +247,8 @@
             }
         },
         "inventory_usage": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             ".indexOn": [
                 "itemId",
                 "date"
@@ -274,6 +282,8 @@
             }
         },
         "inventory_templates": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             "$templateId": {
                 ".validate": "newData.hasChildren(['itemId', 'quantity'])",
                 "itemId": {
@@ -306,6 +316,8 @@
             }
         },
         "payroll_runs": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             "$month": {
                 "$empId": {
                     ".validate": "newData.hasChildren(['amount', 'date'])",
@@ -363,6 +375,8 @@
             }
         },
         "employees": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             ".indexOn": [
                 "name",
                 "role",
@@ -397,6 +411,8 @@
             }
         },
         "doctors": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             ".indexOn": [
                 "name",
                 "specialization",
@@ -431,6 +447,8 @@
             }
         },
         "milk_records": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             ".indexOn": [
                 "date",
                 "vendorId",
@@ -477,6 +495,8 @@
             }
         },
         "cow_performance_logs": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             ".indexOn": [
                 "date",
                 "cowId"
@@ -519,6 +539,8 @@
             }
         },
         "vendors": {
+            ".read": "auth != null",
+            ".write": "auth != null",
             ".indexOn": [
                 "name"
             ],

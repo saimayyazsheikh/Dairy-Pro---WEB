@@ -1,8 +1,8 @@
-# SAIM Dairy Farm Management System
+# Ayyaz Dairy Farm Management System
 
-![SAIM Dairy Farm](https://via.placeholder.com/800x200?text=SAIM+Dairy+Farm+Management+System)
+![Ayyaz Dairy Farm](https://via.placeholder.com/800x200?text=Ayyaz+Dairy+Farm+Management+System)
 
-A comprehensive, mobile-responsive web application designed to digitize and streamline operations for SAIM Dairy Farm. This system manages livestock, milk production, health records, inventory, HR, and finances in a centralized platform.
+A comprehensive, mobile-responsive web application designed to digitize and streamline operations for Ayyaz Dairy Farm. This system manages livestock, milk production, health records, inventory, HR, and finances in a centralized platform.
 
 ## Key Features
 
@@ -85,4 +85,4 @@ The application is fully responsive and optimized for mobile browsers:
     ```
 
 ## License
-Private Property of SAIM Dairy Farm.
+Private Property of Ayyaz Dairy Farm.

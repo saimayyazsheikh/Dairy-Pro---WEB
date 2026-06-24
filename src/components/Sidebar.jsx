@@ -43,8 +43,11 @@ export default function Sidebar() {
                     } md:translate-x-0`}
             >
                 <div className="flex flex-col h-full">
-                    <div className="flex items-center justify-center h-24 border-b">
-                        <img src={logo} alt="SAIM Dairy Farm" className="h-20 w-auto" />
+                    <div className="flex flex-col items-center justify-center py-6 border-b gap-2 bg-gradient-to-b from-green-50/50 to-transparent shrink-0">
+                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary/20 shadow-md flex items-center justify-center bg-white p-0.5">
+                            <img src={logo} alt="Ayyaz Dairy Farm" className="w-full h-full object-cover rounded-full" />
+                        </div>
+                        <span className="font-bold text-gray-800 text-base tracking-wide">Ayyaz Dairy Farm</span>
                     </div>
 
                     <nav className="flex-1 overflow-y-auto py-4">

@@ -152,7 +152,7 @@ export default function Finance() {
 
             // Header
             doc.setFontSize(18);
-            doc.text("SAIM Dairy Farm", 14, 15);
+            doc.text("Ayyaz Dairy Farm", 14, 15);
             doc.setFontSize(12);
             doc.text("Financial Expense Report", 14, 22);
             doc.setFontSize(10);

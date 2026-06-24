@@ -251,7 +251,6 @@ export default function Health() {
                     recordType: activeFormType,
                     cowId: targets[0], // Single ID in edit mode
                     cowTag: cattle.find(c => c.id === targets[0])?.tagId || "Unknown",
-                    cowTag: cattle.find(c => c.id === targets[0])?.tagId || "Unknown",
                     doctorName: formData.doctorName,
                     medicineCost: formData.medicineCost ? parseFloat(formData.medicineCost) : 0,
                     doctorFee: formData.doctorFee ? parseFloat(formData.doctorFee) : 0,
