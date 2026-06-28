@@ -1,8 +1,8 @@
-# Ayyaz Dairy Farm Management System
+# Dairy Pro Management System
 
-![Ayyaz Dairy Farm](https://via.placeholder.com/800x200?text=Ayyaz+Dairy+Farm+Management+System)
+![Dairy Pro](https://via.placeholder.com/800x200?text=Dairy+Pro+Management+System)
 
-A comprehensive, mobile-responsive web application designed to digitize and streamline operations for Ayyaz Dairy Farm. This system manages livestock, milk production, health records, inventory, HR, and finances in a centralized platform.
+A comprehensive, mobile-responsive web application designed to digitize and streamline operations for Dairy Pro. This system manages livestock, milk production, health records, inventory, HR, and finances in a centralized platform.
 
 ## Key Features
 
@@ -53,8 +53,8 @@ The application is fully responsive and optimized for mobile browsers:
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/yourusername/saim-dairy-farm.git
-    cd saim-dairy-farm
+    git clone https://github.com/saimayyazsheikh/Dairy-Pro---WEB.git
+    cd Dairy-Pro---WEB
     ```
 
 2.  **Install Dependencies**:
@@ -85,4 +85,4 @@ The application is fully responsive and optimized for mobile browsers:
     ```
 
 ## License
-Private Property of Ayyaz Dairy Farm.
+Private Property of Dairy Pro.

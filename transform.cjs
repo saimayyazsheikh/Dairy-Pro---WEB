@@ -1,6 +1,6 @@
 const fs = require('fs');
 
-const path = 'c:/Users/Saim/Desktop/DairyPro/SAIM Dairy Farm/database.rules.json';
+const path = 'c:/Users/Saim/Desktop/DairyPro/Dairy Pro/database.rules.json';
 const data = JSON.parse(fs.readFileSync(path, 'utf8'));
 
 const newRules = {
