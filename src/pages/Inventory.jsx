@@ -44,7 +44,8 @@ export default function Inventory() {
         quantity: "",
         unit: "",
         cost: "",
-        lowStockThreshold: ""
+        lowStockThreshold: "",
+        isCustomBrand: false
     });
 
     // --- Category Definitions ---
@@ -80,7 +81,7 @@ export default function Inventory() {
     };
 
     const wandaOptions = {
-        brands: ["Ahsan Feed Mills", "Hamid", "Other"],
+        brands: ["Ahsan Feed Mills", "Hamid", "Self Entry"],
         types: ["Calf Starter", "Customized", "Heifers", "Meat", "Milking"],
     };
 
@@ -98,6 +99,7 @@ export default function Inventory() {
     const handleOpenItemModal = (item = null) => {
         if (item) {
             setCurrentItem(item);
+            const isCustom = item.subCategory === "Wanda" && item.brand && !wandaOptions.brands.includes(item.brand);
             setItemForm({
                 name: item.name,
                 category: item.category,
@@ -107,7 +109,8 @@ export default function Inventory() {
                 quantity: item.quantity,
                 unit: item.unit,
                 cost: item.cost || "",
-                lowStockThreshold: item.lowStockThreshold
+                lowStockThreshold: item.lowStockThreshold,
+                isCustomBrand: isCustom
             });
         } else {
             setCurrentItem(null);
@@ -120,7 +123,8 @@ export default function Inventory() {
                 quantity: "",
                 unit: "",
                 cost: "",
-                lowStockThreshold: ""
+                lowStockThreshold: "",
+                isCustomBrand: false
             });
         }
         setIsItemModalOpen(true);
@@ -129,8 +133,9 @@ export default function Inventory() {
     const handleItemSubmit = async (e) => {
         e.preventDefault();
         try {
+            const { isCustomBrand, ...formToSave } = itemForm;
             const data = {
-                ...itemForm,
+                ...formToSave,
                 quantity: parseFloat(itemForm.quantity),
                 cost: parseFloat(itemForm.cost) || 0,
                 lowStockThreshold: parseFloat(itemForm.lowStockThreshold)
@@ -693,14 +698,30 @@ export default function Inventory() {
                                     <div>
                                         <label className="block text-xs font-bold text-yellow-800 mb-1">Company</label>
                                         <select
-                                            className="w-full p-2 border rounded text-sm"
-                                            value={itemForm.brand}
-                                            onChange={(e) => setItemForm({ ...itemForm, brand: e.target.value })}
-                                            required
+                                            className={`w-full p-2 border rounded text-sm ${itemForm.isCustomBrand ? 'mb-2' : ''}`}
+                                            value={itemForm.isCustomBrand ? "Self Entry" : itemForm.brand}
+                                            onChange={(e) => {
+                                                if (e.target.value === "Self Entry") {
+                                                    setItemForm({ ...itemForm, isCustomBrand: true, brand: "" });
+                                                } else {
+                                                    setItemForm({ ...itemForm, isCustomBrand: false, brand: e.target.value });
+                                                }
+                                            }}
+                                            required={!itemForm.isCustomBrand}
                                         >
                                             <option value="">Select...</option>
                                             {wandaOptions.brands.map(b => <option key={b} value={b}>{b}</option>)}
                                         </select>
+                                        {itemForm.isCustomBrand && (
+                                            <input
+                                                type="text"
+                                                className="w-full p-2 border rounded text-sm"
+                                                placeholder="Enter Company Name..."
+                                                value={itemForm.brand}
+                                                onChange={e => setItemForm({ ...itemForm, brand: e.target.value })}
+                                                required
+                                            />
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-yellow-800 mb-1">Feed Type</label>

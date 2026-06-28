@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import Layout from "../components/Layout";
 import { useFinance } from "../hooks/useFinance";
+import { useAuth } from "../contexts/AuthContext";
 import { useToast } from "../contexts/ToastContext";
 import { useConfirmation } from "../contexts/ConfirmationContext";
 import {
@@ -24,6 +25,8 @@ import * as XLSX from "xlsx";
 
 export default function Finance() {
     const { expenses, loading, addExpense, deleteExpense, updateExpense } = useFinance();
+    const { farmData } = useAuth();
+    const farmName = farmData?.farmName || "DairyPro";
     const { addToast } = useToast();
     const { confirm } = useConfirmation();
 
@@ -32,7 +35,8 @@ export default function Finance() {
         date: new Date().toISOString().split('T')[0],
         category: "Feed",
         amount: "",
-        description: ""
+        description: "",
+        isCustomCategory: false
     });
     const [editingId, setEditingId] = useState(null);
 
@@ -74,7 +78,7 @@ export default function Finance() {
     }, [expenses]);
 
     const categories = [
-        "Feed", "Medicine", "Wages", "Maintenance", "Utilities", "Fuel", "Equipment", "Other"
+        "Feed", "Medicine", "Wages", "Maintenance", "Utilities", "Fuel", "Equipment", "Self Entry"
     ];
 
     // --- HANDLERS ---
@@ -82,8 +86,9 @@ export default function Finance() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            const { isCustomCategory, ...expenseDataToSave } = form;
             const expenseData = {
-                ...form,
+                ...expenseDataToSave,
                 amount: parseFloat(form.amount)
             };
 
@@ -100,7 +105,8 @@ export default function Finance() {
                 date: new Date().toISOString().split('T')[0],
                 category: "Feed",
                 amount: "",
-                description: ""
+                description: "",
+                isCustomCategory: false
             });
         } catch (error) {
             addToast(editingId ? "Failed to update expense" : "Failed to add expense", "error");
@@ -109,11 +115,13 @@ export default function Finance() {
 
     const handleEditClick = (exp) => {
         setEditingId(exp.id);
+        const isCustom = exp.category && !categories.includes(exp.category);
         setForm({
             date: exp.date || new Date().toISOString().split('T')[0],
             category: exp.category || "Feed",
             amount: exp.amount || "",
-            description: exp.description || ""
+            description: exp.description || "",
+            isCustomCategory: isCustom
         });
         // Scroll to form (Mobile UX)
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -125,7 +133,8 @@ export default function Finance() {
             date: new Date().toISOString().split('T')[0],
             category: "Feed",
             amount: "",
-            description: ""
+            description: "",
+            isCustomCategory: false
         });
     };
 
@@ -152,7 +161,7 @@ export default function Finance() {
 
             // Header
             doc.setFontSize(18);
-            doc.text("Ayyaz Dairy Farm", 14, 15);
+            doc.text(farmName, 14, 15);
             doc.setFontSize(12);
             doc.text("Financial Expense Report", 14, 22);
             doc.setFontSize(10);
@@ -296,14 +305,31 @@ export default function Finance() {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                             <select
-                                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
-                                value={form.category}
-                                onChange={e => setForm({ ...form, category: e.target.value })}
+                                className={`w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none ${form.isCustomCategory ? 'mb-2' : ''}`}
+                                value={form.isCustomCategory ? "Self Entry" : form.category}
+                                onChange={(e) => {
+                                    if (e.target.value === "Self Entry") {
+                                        setForm({ ...form, isCustomCategory: true, category: "" });
+                                    } else {
+                                        setForm({ ...form, isCustomCategory: false, category: e.target.value });
+                                    }
+                                }}
+                                required={!form.isCustomCategory}
                             >
                                 {categories.map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
                                 ))}
                             </select>
+                            {form.isCustomCategory && (
+                                <input
+                                    type="text"
+                                    className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-primary outline-none"
+                                    placeholder="Enter Custom Category..."
+                                    value={form.category}
+                                    onChange={e => setForm({ ...form, category: e.target.value })}
+                                    required
+                                />
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Amount (Rs)</label>

@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { rtdb } from "../firebase";
 import { ref, onValue, push, remove, update } from "firebase/database";
 
 export function useCattle() {
+    const { userData } = useAuth();
+    const farmId = userData?.farmId;
     const [cattle, setCattle] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const cattleRef = ref(rtdb, 'cattle');
+        if (!farmId) return;
+        const cattleRef = ref(rtdb, `farms/${farmId}/cattle`);
         const unsubscribe = onValue(cattleRef, (snapshot) => {
             try {
                 const data = snapshot.val();
@@ -36,11 +40,11 @@ export function useCattle() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [farmId]);
 
     const addCattle = async (data) => {
         try {
-            const cattleRef = ref(rtdb, 'cattle');
+            const cattleRef = ref(rtdb, `farms/${farmId}/cattle`);
             await push(cattleRef, {
                 ...data,
                 createdAt: new Date().toISOString(),
@@ -53,7 +57,7 @@ export function useCattle() {
 
     const updateCattle = async (id, data) => {
         try {
-            const cattleRef = ref(rtdb, `cattle/${id}`);
+            const cattleRef = ref(rtdb, `farms/${farmId}/cattle/${id}`);
             await update(cattleRef, {
                 ...data,
                 updatedAt: new Date().toISOString(),
@@ -66,7 +70,7 @@ export function useCattle() {
 
     const deleteCattle = async (id) => {
         try {
-            const cattleRef = ref(rtdb, `cattle/${id}`);
+            const cattleRef = ref(rtdb, `farms/${farmId}/cattle/${id}`);
             await remove(cattleRef);
         } catch (err) {
             console.error("Error deleting cattle:", err);

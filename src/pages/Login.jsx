@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import logo from "../assets/logo.png";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 
@@ -40,7 +40,7 @@ export default function Login() {
                     <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md flex items-center justify-center bg-white p-0.5 mb-4">
                         <img src={logo} alt="Logo" className="w-full h-full object-cover rounded-full" />
                     </div>
-                    <h2 className="text-3xl font-extrabold text-gray-800 text-center tracking-tight">Ayyaz Dairy Farm</h2>
+                    <h2 className="text-3xl font-extrabold text-gray-800 text-center tracking-tight">DairyPro</h2>
                     <p className="text-gray-500 text-sm mt-1">Management Portal</p>
                 </div>
 
@@ -99,6 +99,13 @@ export default function Login() {
                         ) : "Sign In"}
                     </button>
                 </form>
+
+                <div className="mt-6 text-center text-sm text-gray-500">
+                    Don't have an account?{" "}
+                    <Link to="/register" className="text-primary font-bold hover:underline">
+                        Create Workspace
+                    </Link>
+                </div>
             </div>
         </div>
     );

@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { rtdb } from "../firebase";
 import { ref, onValue, push, update, remove, get } from "firebase/database";
 
 export function useHR() {
+    const { userData } = useAuth();
+    const farmId = userData?.farmId;
     const [employees, setEmployees] = useState([]);
     const [doctors, setDoctors] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -11,11 +14,12 @@ export function useHR() {
     const [doctorStats, setDoctorStats] = useState({}); // { docName: totalPaid }
 
     useEffect(() => {
-        const empRef = ref(rtdb, 'employees');
-        const docRef = ref(rtdb, 'doctors');
-        const expenseRef = ref(rtdb, 'expenses');
+        if (!farmId) return;
+        const empRef = ref(rtdb, `farms/${farmId}/employees`);
+        const docRef = ref(rtdb, `farms/${farmId}/doctors`);
+        const expenseRef = ref(rtdb, `farms/${farmId}/expenses`);
         const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-        const payrollRef = ref(rtdb, `payroll_runs/${currentMonth}`);
+        const payrollRef = ref(rtdb, `farms/${farmId}/payroll_runs/${currentMonth}`);
 
         // Fetch Employees
         const unsubEmp = onValue(empRef, (snapshot) => {
@@ -88,12 +92,12 @@ export function useHR() {
             unsubPayroll();
             unsubExpenses();
         };
-    }, []);
+    }, [farmId]);
 
     // --- Employee Actions ---
     // --- Employee Actions ---
     const addEmployee = async (data) => {
-        const newRef = push(ref(rtdb, 'employees'));
+        const newRef = push(ref(rtdb, `farms/${farmId}/employees`));
         const newId = newRef.key;
         const today = new Date();
         const createdData = { ...data, createdAt: today.toISOString() };
@@ -112,7 +116,7 @@ export function useHR() {
                 const monthName = today.toLocaleString('default', { month: 'short', year: 'numeric' });
 
                 // 1. Log Expense
-                await push(ref(rtdb, 'expenses'), {
+                await push(ref(rtdb, `farms/${farmId}/expenses`), {
                     date: dateStr,
                     category: "Salaries",
                     amount: salaryAmount,
@@ -123,7 +127,7 @@ export function useHR() {
                 });
 
                 // 2. Mark as Paid in Validation Ledger
-                await update(ref(rtdb, `payroll_runs/${currentMonth}/${newId}`), {
+                await update(ref(rtdb, `farms/${farmId}/payroll_runs/${currentMonth}/${newId}`), {
                     amount: salaryAmount,
                     date: dateStr,
                     status: "Paid"
@@ -135,21 +139,21 @@ export function useHR() {
     };
 
     const updateEmployee = async (id, data) => {
-        await update(ref(rtdb, `employees/${id}`), { ...data, updatedAt: new Date().toISOString() });
+        await update(ref(rtdb, `farms/${farmId}/employees/${id}`), { ...data, updatedAt: new Date().toISOString() });
     };
     const deleteEmployee = async (id) => {
-        await remove(ref(rtdb, `employees/${id}`));
+        await remove(ref(rtdb, `farms/${farmId}/employees/${id}`));
     };
 
     // --- Doctor Actions ---
     const addDoctor = async (data) => {
-        await push(ref(rtdb, 'doctors'), { ...data, createdAt: new Date().toISOString() });
+        await push(ref(rtdb, `farms/${farmId}/doctors`), { ...data, createdAt: new Date().toISOString() });
     };
     const updateDoctor = async (id, data) => {
-        await update(ref(rtdb, `doctors/${id}`), { ...data, updatedAt: new Date().toISOString() });
+        await update(ref(rtdb, `farms/${farmId}/doctors/${id}`), { ...data, updatedAt: new Date().toISOString() });
     };
     const deleteDoctor = async (id) => {
-        await remove(ref(rtdb, `doctors/${id}`));
+        await remove(ref(rtdb, `farms/${farmId}/doctors/${id}`));
     };
 
     const runMonthlyPayroll = async () => {
@@ -167,7 +171,7 @@ export function useHR() {
 
         try {
             // Fetch Expenses for "Double-Entry Check"
-            const expSnapshot = await get(ref(rtdb, 'expenses'));
+            const expSnapshot = await get(ref(rtdb, `farms/${farmId}/expenses`));
             const expensesData = expSnapshot.val() || {};
             const expensesList = Object.values(expensesData);
 
@@ -185,7 +189,7 @@ export function useHR() {
 
                 if (alreadyPaidInExpenses) {
                     // Sync Ledger if missing (Data integrity fix)
-                    await update(ref(rtdb, `payroll_runs/${currentMonth}/${emp.id}`), {
+                    await update(ref(rtdb, `farms/${farmId}/payroll_runs/${currentMonth}/${emp.id}`), {
                         amount: 0,
                         date: todayStr,
                         status: "Paid (Found in Expenses)"
@@ -199,7 +203,7 @@ export function useHR() {
 
                 if (salaryAmount > 0) {
                     // 3. Create Expense
-                    await push(ref(rtdb, 'expenses'), {
+                    await push(ref(rtdb, `farms/${farmId}/expenses`), {
                         date: todayStr,
                         category: "Salaries",
                         amount: salaryAmount,
@@ -210,7 +214,7 @@ export function useHR() {
                     });
 
                     // 4. Mark as Paid
-                    await update(ref(rtdb, `payroll_runs/${currentMonth}/${emp.id}`), {
+                    await update(ref(rtdb, `farms/${farmId}/payroll_runs/${currentMonth}/${emp.id}`), {
                         amount: salaryAmount,
                         date: todayStr,
                         status: "Paid"

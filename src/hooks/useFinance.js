@@ -4,14 +4,18 @@ import { rtdb } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
 
 export function useFinance() {
-    const { currentUser } = useAuth();
+    const { userData, currentUser } = useAuth();
+    const farmId = userData?.farmId;
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!currentUser) return;
+        if (!farmId || !currentUser) {
+            setLoading(false);
+            return;
+        }
 
-        const expensesRef = ref(rtdb, "expenses");
+        const expensesRef = ref(rtdb, `farms/${farmId}/expenses`);
         const unsubscribe = onValue(expensesRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -26,14 +30,17 @@ export function useFinance() {
                 setExpenses([]);
             }
             setLoading(false);
+        }, (error) => {
+            console.error("Error fetching expenses:", error);
+            setLoading(false);
         });
 
         return () => unsubscribe();
-    }, [currentUser]);
+    }, [farmId, currentUser]);
 
     const addExpense = async (expenseData) => {
         try {
-            const expensesRef = ref(rtdb, "expenses");
+            const expensesRef = ref(rtdb, `farms/${farmId}/expenses`);
             await push(expensesRef, {
                 ...expenseData,
                 date: expenseData.date || new Date().toISOString(),
@@ -48,7 +55,7 @@ export function useFinance() {
 
     const updateExpense = async (id, updates) => {
         try {
-            const expenseRef = ref(rtdb, `expenses/${id}`);
+            const expenseRef = ref(rtdb, `farms/${farmId}/expenses/${id}`);
             await update(expenseRef, {
                 ...updates,
                 updatedAt: new Date().toISOString()
@@ -61,7 +68,7 @@ export function useFinance() {
 
     const deleteExpense = async (id) => {
         try {
-            const expenseRef = ref(rtdb, `expenses/${id}`);
+            const expenseRef = ref(rtdb, `farms/${farmId}/expenses/${id}`);
             await remove(expenseRef);
         } catch (error) {
             console.error("Error deleting expense:", error);

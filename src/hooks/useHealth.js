@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { rtdb } from "../firebase";
 import { ref, onValue, push, remove, query, orderByChild, equalTo, get, update } from "firebase/database";
 
 export function useHealth() {
+    const { userData } = useAuth();
+    const farmId = userData?.farmId;
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const healthRef = ref(rtdb, 'health_records');
+        if (!farmId) return;
+        const healthRef = ref(rtdb, `farms/${farmId}/health_records`);
         const unsubscribe = onValue(healthRef, (snapshot) => {
             try {
                 const data = snapshot.val();
@@ -36,18 +40,18 @@ export function useHealth() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [farmId]);
 
     const addHealthRecord = async (data) => {
         try {
-            const healthRef = ref(rtdb, 'health_records');
+            const healthRef = ref(rtdb, `farms/${farmId}/health_records`);
             const newRecordRef = await push(healthRef, {
                 ...data, // date, cowId, recordType, etc.
                 createdAt: new Date().toISOString(),
             });
 
             // Automatically add to Expenses (Split)
-            const expensesRef = ref(rtdb, 'expenses');
+            const expensesRef = ref(rtdb, `farms/${farmId}/expenses`);
 
             // 1. Medicine Expense
             if (data.medicineCost && parseFloat(data.medicineCost) > 0) {
@@ -85,13 +89,13 @@ export function useHealth() {
     const deleteHealthRecord = async (id) => {
         try {
             // 1. Delete the Health Record
-            await remove(ref(rtdb, `health_records/${id}`));
+            await remove(ref(rtdb, `farms/${farmId}/health_records/${id}`));
 
             // 2. Find and Delete associated Expense record
             // We wrap this in a separate try-catch so that if expense cleanup fails (e.g. index issue),
             // the user still knows the main record was deleted.
             try {
-                const expensesRef = ref(rtdb, 'expenses');
+                const expensesRef = ref(rtdb, `farms/${farmId}/expenses`);
                 const expenseQuery = query(expensesRef, orderByChild('referenceId'), equalTo(id));
                 const snapshot = await get(expenseQuery);
 
@@ -115,11 +119,11 @@ export function useHealth() {
     const updateHealthRecord = async (id, data) => {
         try {
             // 1. Update Health Record
-            const healthRef = ref(rtdb, `health_records/${id}`);
+            const healthRef = ref(rtdb, `farms/${farmId}/health_records/${id}`);
             await update(healthRef, data);
 
             // 2. Sync Expense Record
-            const expensesRef = ref(rtdb, 'expenses');
+            const expensesRef = ref(rtdb, `farms/${farmId}/expenses`);
             const expenseQuery = query(expensesRef, orderByChild('referenceId'), equalTo(id));
             const snapshot = await get(expenseQuery);
 

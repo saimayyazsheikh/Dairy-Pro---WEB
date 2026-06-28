@@ -1,14 +1,18 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { rtdb } from "../firebase";
 import { ref, onValue, push, remove } from "firebase/database";
 
 export function useProduction() {
+    const { userData } = useAuth();
+    const farmId = userData?.farmId;
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const logsRef = ref(rtdb, 'production_logs');
+        if (!farmId) return;
+        const logsRef = ref(rtdb, `farms/${farmId}/production_logs`);
         const unsubscribe = onValue(logsRef, (snapshot) => {
             try {
                 const data = snapshot.val();
@@ -31,11 +35,11 @@ export function useProduction() {
         });
 
         return () => unsubscribe();
-    }, []);
+    }, [farmId]);
 
     const addProductionLog = async (data) => {
         try {
-            const logsRef = ref(rtdb, 'production_logs');
+            const logsRef = ref(rtdb, `farms/${farmId}/production_logs`);
             await push(logsRef, {
                 ...data,
                 createdAt: new Date().toISOString(),
@@ -48,7 +52,7 @@ export function useProduction() {
 
     const deleteProductionLog = async (id) => {
         try {
-            const logRef = ref(rtdb, `production_logs/${id}`);
+            const logRef = ref(rtdb, `farms/${farmId}/production_logs/${id}`);
             await remove(logRef);
         } catch (err) {
             console.error("Error deleting production log:", err);

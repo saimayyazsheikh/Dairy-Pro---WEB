@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { rtdb } from "../firebase";
 import { ref, onValue, push, update, remove, get } from "firebase/database";
 
 export function useInventory() {
+    const { userData } = useAuth();
+    const farmId = userData?.farmId;
     const [items, setItems] = useState([]);
     const [templates, setTemplates] = useState([]); // Defined here for scope access
     const [loading, setLoading] = useState(true);
@@ -11,9 +14,10 @@ export function useInventory() {
     const [usageLogs, setUsageLogs] = useState([]);
 
     useEffect(() => {
-        const inventoryRef = ref(rtdb, 'inventory');
-        const usageRef = ref(rtdb, 'inventory_usage');
-        const templatesRef = ref(rtdb, 'inventory_templates');
+        if (!farmId) return;
+        const inventoryRef = ref(rtdb, `farms/${farmId}/inventory`);
+        const usageRef = ref(rtdb, `farms/${farmId}/inventory_usage`);
+        const templatesRef = ref(rtdb, `farms/${farmId}/inventory_templates`);
 
         const unsubscribeInventory = onValue(inventoryRef, (snapshot) => {
             try {
@@ -71,11 +75,11 @@ export function useInventory() {
             unsubscribeUsage();
             unsubscribeTemplates();
         };
-    }, []);
+    }, [farmId]);
 
     const addItem = async (data) => {
         try {
-            const inventoryRef = ref(rtdb, 'inventory');
+            const inventoryRef = ref(rtdb, `farms/${farmId}/inventory`);
             await push(inventoryRef, {
                 ...data,
                 createdAt: new Date().toISOString(),
@@ -88,7 +92,7 @@ export function useInventory() {
 
     const updateItem = async (id, data) => {
         try {
-            const itemRef = ref(rtdb, `inventory/${id}`);
+            const itemRef = ref(rtdb, `farms/${farmId}/inventory/${id}`);
             await update(itemRef, {
                 ...data,
                 updatedAt: new Date().toISOString(),
@@ -101,7 +105,7 @@ export function useInventory() {
 
     const deleteItem = async (id) => {
         try {
-            const itemRef = ref(rtdb, `inventory/${id}`);
+            const itemRef = ref(rtdb, `farms/${farmId}/inventory/${id}`);
             await remove(itemRef);
         } catch (err) {
             console.error("Error deleting item:", err);
@@ -111,7 +115,7 @@ export function useInventory() {
 
     const logUsage = async (itemId, quantity, note) => {
         try {
-            const itemRef = ref(rtdb, `inventory/${itemId}`);
+            const itemRef = ref(rtdb, `farms/${farmId}/inventory/${itemId}`);
             const snapshot = await get(itemRef);
             if (snapshot.exists()) {
                 const currentData = snapshot.val();
@@ -128,7 +132,7 @@ export function useInventory() {
                 });
 
                 // 2. Log Usage
-                const usageRef = ref(rtdb, 'inventory_usage');
+                const usageRef = ref(rtdb, `farms/${farmId}/inventory_usage`);
                 const newLogRef = await push(usageRef, {
                     itemId,
                     itemName: currentData.name,
@@ -140,7 +144,7 @@ export function useInventory() {
 
                 // 3. Log Expense (Auto-Sync)
                 if (expenseAmount > 0) {
-                    const expensesRef = ref(rtdb, 'expenses');
+                    const expensesRef = ref(rtdb, `farms/${farmId}/expenses`);
                     await push(expensesRef, {
                         description: `Consumption: ${currentData.name} (${quantity} ${currentData.unit}). Note: ${note || '-'}`,
                         amount: expenseAmount,
@@ -161,14 +165,14 @@ export function useInventory() {
     const deleteUsageLog = async (logId) => {
         try {
             // 1. Get the log to know details
-            const logRef = ref(rtdb, `inventory_usage/${logId}`);
+            const logRef = ref(rtdb, `farms/${farmId}/inventory_usage/${logId}`);
             const logSnapshot = await get(logRef);
 
             if (logSnapshot.exists()) {
                 const logData = logSnapshot.val();
 
                 // 2. Restore Stock
-                const itemRef = ref(rtdb, `inventory/${logData.itemId}`);
+                const itemRef = ref(rtdb, `farms/${farmId}/inventory/${logData.itemId}`);
                 const itemSnapshot = await get(itemRef);
 
                 if (itemSnapshot.exists()) {
@@ -181,7 +185,7 @@ export function useInventory() {
                 }
 
                 // 3. Delete Associated Expense (Cascade)
-                const expensesRef = ref(rtdb, 'expenses');
+                const expensesRef = ref(rtdb, `farms/${farmId}/expenses`);
                 // We need to query for the expense that has referenceId === logId
                 // Assuming we haven't indexed referenceId, we might need to filter manually if dataset is small, 
                 // but better to use a query if possible or just loop since we don't have indexes set up in rules.use 
@@ -193,7 +197,7 @@ export function useInventory() {
                     const expData = expSnapshot.val();
                     const expKeyToDelete = Object.keys(expData).find(key => expData[key].referenceId === logId);
                     if (expKeyToDelete) {
-                        await remove(ref(rtdb, `expenses/${expKeyToDelete}`));
+                        await remove(ref(rtdb, `farms/${farmId}/expenses/${expKeyToDelete}`));
                     }
                 }
 
@@ -208,7 +212,7 @@ export function useInventory() {
 
     const addTemplate = async (data) => {
         try {
-            await push(ref(rtdb, 'inventory_templates'), {
+            await push(ref(rtdb, `farms/${farmId}/inventory_templates`), {
                 ...data,
                 createdAt: new Date().toISOString(),
                 // If lastRunDate is passed (Start Tomorrow path), use it. Else default empty.
@@ -221,7 +225,7 @@ export function useInventory() {
 
     const deleteTemplate = async (id) => {
         try {
-            await remove(ref(rtdb, `inventory_templates/${id}`));
+            await remove(ref(rtdb, `farms/${farmId}/inventory_templates/${id}`));
         } catch (err) {
             throw err;
         }
@@ -233,13 +237,13 @@ export function useInventory() {
 
         try {
             // Fetch Templates
-            const snapshot = await get(ref(rtdb, 'inventory_templates'));
+            const snapshot = await get(ref(rtdb, `farms/${farmId}/inventory_templates`));
             if (!snapshot.exists()) return 0;
             const currentTemplates = snapshot.val();
 
             // Fetch *Today's* Usage to prevent duplicates
             // VALIDATION: Check for ANY log for this item today (Manual or Auto) to prevent double-dipping.
-            const usageSnapshot = await get(ref(rtdb, 'inventory_usage'));
+            const usageSnapshot = await get(ref(rtdb, `farms/${farmId}/inventory_usage`));
             const usageData = usageSnapshot.val() || {};
             const todaysLogs = Object.values(usageData).filter(
                 log => log.date.startsWith(today)
@@ -261,7 +265,7 @@ export function useInventory() {
                     await logUsage(t.itemId, t.quantity, "Recurring Auto-Log");
 
                     // Update Last Run
-                    await update(ref(rtdb, `inventory_templates/${key}`), {
+                    await update(ref(rtdb, `farms/${farmId}/inventory_templates/${key}`), {
                         lastRunDate: today
                     });
                     processedCount++;
@@ -279,8 +283,8 @@ export function useInventory() {
     const cleanUpDuplicates = async () => {
         let deletedCount = 0;
         try {
-            const usageRef = ref(rtdb, 'inventory_usage');
-            const expensesRef = ref(rtdb, 'expenses');
+            const usageRef = ref(rtdb, `farms/${farmId}/inventory_usage`);
+            const expensesRef = ref(rtdb, `farms/${farmId}/expenses`);
 
             const [usageSnap, expenseSnap] = await Promise.all([
                 get(usageRef),

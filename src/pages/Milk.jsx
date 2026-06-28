@@ -4,9 +4,10 @@ import { useMilk } from "../hooks/useMilk";
 import { useCattle } from "../hooks/useCattle";
 import { useToast } from "../contexts/ToastContext";
 import { useConfirmation } from "../contexts/ConfirmationContext";
+import { useAuth } from "../contexts/AuthContext";
 import {
     Droplet, DollarSign, Calendar, TrendingUp,
-    FileText, Save, Trash2, User, ChevronDown, Plus, Download, Filter, FileSpreadsheet, FileCode
+    FileText, Save, Trash2, User, ChevronDown, Plus, Download, Filter, FileSpreadsheet, FileCode, X, Edit2
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -16,17 +17,21 @@ export default function Milk() {
     const {
         milkRecords, performanceLogs, vendors,
         loading, addMilkRecord, deleteMilkRecord,
-        addPerformanceLog, updatePerformanceLog, deletePerformanceLog
+        addPerformanceLog, updatePerformanceLog, deletePerformanceLog,
+        addVendor, updateVendor, deleteVendor
     } = useMilk();
     const { cattle } = useCattle();
     const { addToast } = useToast();
     const { confirm } = useConfirmation();
+    const { farmData } = useAuth();
+    const farmName = farmData?.farmName || "DairyPro";
 
     const [activeTab, setActiveTab] = useState("daily"); // daily | monthly
     const [submitting, setSubmitting] = useState(false);
+    const [showVendorModal, setShowVendorModal] = useState(false);
 
     // --- DAILY FORM STATE (COLLECTIVE LOGGING) ---
-    const initialEntry = { vendorName: "", vendorId: "", quantity: "", pricePerLiter: "" };
+    const initialEntry = { vendorName: "", vendorId: "", quantity: "", pricePerLiter: "", isCustom: false };
     const [dailyDate, setDailyDate] = useState(new Date().toLocaleDateString('en-CA'));
     // Session state removed
     const [entries, setEntries] = useState([{ ...initialEntry }]);
@@ -72,66 +77,6 @@ export default function Milk() {
         };
     }, [milkRecords]);
 
-    // 2. Vendor Performance Cards
-    const vendorStats = useMemo(() => {
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-
-        // Helper to check if date is in current week (Resets on Sunday)
-        const isCurrentWeek = (dateStr) => {
-            const d = new Date(dateStr);
-            const today = new Date();
-            const dayOfToday = today.getDay(); // 0-6 (Sun-Sat)
-
-            // Set start of week to the previous Sunday (or today if today is Sunday)
-            today.setHours(0, 0, 0, 0);
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() - dayOfToday);
-
-            return d >= startOfWeek;
-        };
-
-        // Angro (Weekly)
-        const angroStats = milkRecords
-            .filter(r => r.vendorName && r.vendorName.toLowerCase().includes("angro") && isCurrentWeek(r.date))
-            .reduce((acc, r) => ({
-                qty: acc.qty + (parseFloat(r.quantity) || 0),
-                rev: acc.rev + (parseFloat(r.totalAmount) || 0)
-            }), { qty: 0, rev: 0 });
-
-        // Mansoor (Monthly)
-        const mansoorStats = milkRecords
-            .filter(r => {
-                const d = new Date(r.date);
-                return r.vendorName && r.vendorName.toLowerCase().includes("mansoor") &&
-                    d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-            })
-            .reduce((acc, r) => ({
-                qty: acc.qty + (parseFloat(r.quantity) || 0),
-                rev: acc.rev + (parseFloat(r.totalAmount) || 0)
-            }), { qty: 0, rev: 0 });
-
-        // Calf/Gift Consolidated (Monthly)
-        const calfStats = milkRecords
-            .filter(r => {
-                const d = new Date(r.date);
-                const name = r.vendorName ? r.vendorName.toLowerCase() : "";
-                const isCalfOrGift = name.includes("calf") || name.includes("gift");
-                return isCalfOrGift && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-            })
-            .reduce((acc, r) => ({
-                qty: acc.qty + (parseFloat(r.quantity) || 0),
-                rev: acc.rev + (parseFloat(r.totalAmount) || 0)
-            }), { qty: 0, rev: 0 });
-
-        return {
-            angro: { qty: angroStats.qty.toFixed(1), rev: angroStats.rev.toLocaleString() },
-            mansoor: { qty: mansoorStats.qty.toFixed(1), rev: mansoorStats.rev.toLocaleString() },
-            calf: { qty: calfStats.qty.toFixed(1), rev: calfStats.rev.toLocaleString() }
-        };
-    }, [milkRecords]);
-
 
     // --- HANDLERS ---
 
@@ -151,7 +96,7 @@ export default function Milk() {
         newEntries[index][field] = value;
 
         // Auto-fill price if vendor selected
-        if (field === "vendorName") {
+        if (field === "vendorName" && !newEntries[index].isCustom) {
             const vendor = vendors.find(v => v.name.toLowerCase() === value.toLowerCase());
             if (vendor) {
                 newEntries[index].pricePerLiter = vendor.defaultPrice || "";
@@ -242,7 +187,10 @@ export default function Milk() {
 
     const handleMonthlyExportPDF = () => {
         const doc = new jsPDF();
-        doc.text("Monthly Cow Performance", 14, 15);
+        doc.setFontSize(18);
+        doc.text(farmName, 14, 15);
+        doc.setFontSize(12);
+        doc.text("Monthly Cow Performance", 14, 22);
         const tableColumn = ["Month", "Animal Tag", "Morning (L)", "Evening (L)", "Night (L)", "Total (L)"];
         const tableRows = [];
 
@@ -262,7 +210,7 @@ export default function Milk() {
             tableRows.push(row);
         });
 
-        autoTable(doc, { head: [tableColumn], body: tableRows, startY: 20 });
+        autoTable(doc, { head: [tableColumn], body: tableRows, startY: 28 });
         doc.save("monthly_performance.pdf");
     };
 
@@ -326,7 +274,7 @@ export default function Milk() {
 
             // Header
             doc.setFontSize(18);
-            doc.text("Ayyaz Dairy Farm", 14, 15);
+            doc.text(farmName, 14, 15);
             doc.setFontSize(12);
             doc.text("Milk Sales Report", 14, 22);
 
@@ -412,7 +360,47 @@ export default function Milk() {
         }
     }
 
-    const predefinedVendors = ["Angro", "Gift-Farm", "Mansoor", "Calf", "Other"];
+    // Vendor Modal State
+    const [newVendor, setNewVendor] = useState({ name: "", defaultPrice: "" });
+    const [editingVendorId, setEditingVendorId] = useState(null);
+
+    const handleSaveVendor = async () => {
+        if (!newVendor.name || !newVendor.defaultPrice) {
+            addToast("Please fill all fields", "error");
+            return;
+        }
+        try {
+            if (editingVendorId) {
+                await updateVendor(editingVendorId, { name: newVendor.name, defaultPrice: parseFloat(newVendor.defaultPrice) });
+                addToast("Vendor updated", "success");
+            } else {
+                await addVendor({ name: newVendor.name, defaultPrice: parseFloat(newVendor.defaultPrice) });
+                addToast("Vendor added", "success");
+            }
+            setNewVendor({ name: "", defaultPrice: "" });
+            setEditingVendorId(null);
+        } catch (err) {
+            addToast("Failed to save vendor", "error");
+        }
+    };
+
+    const handleEditVendor = (v) => {
+        setNewVendor({ name: v.name, defaultPrice: v.defaultPrice });
+        setEditingVendorId(v.id);
+    };
+
+    const handleDeleteVendor = async (id) => {
+        if (await confirm("Delete this permanent vendor?")) {
+            try {
+                await deleteVendor(id);
+                addToast("Vendor deleted", "delete");
+            } catch (err) {
+                addToast("Failed to delete vendor", "error");
+            }
+        }
+    };
+
+    const dynamicVendors = Array.from(new Set([...milkRecords.map(r => r.vendorName), ...vendors.map(v => v.name)])).filter(Boolean);
 
     return (
         <Layout>
@@ -438,39 +426,6 @@ export default function Milk() {
                 </div>
             </div>
 
-            {/* Vendor Performance Cards (Second Row) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <h4 className="text-xs text-gray-500 uppercase font-semibold">Angro (Weekly)</h4>
-                    <div className="flex justify-between items-end mt-2">
-                        <div>
-                            <span className="text-2xl font-bold text-gray-800 block">{vendorStats.angro.qty} L</span>
-                            <span className="text-sm font-medium text-green-600">Rs {vendorStats.angro.rev}</span>
-                        </div>
-                        <TrendingUp size={16} className="text-green-500 mb-1" />
-                    </div>
-                </div>
-                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <h4 className="text-xs text-gray-500 uppercase font-semibold">Mansoor (Monthly)</h4>
-                    <div className="flex justify-between items-end mt-2">
-                        <div>
-                            <span className="text-2xl font-bold text-gray-800 block">{vendorStats.mansoor.qty} L</span>
-                            <span className="text-sm font-medium text-blue-600">Rs {vendorStats.mansoor.rev}</span>
-                        </div>
-                        <TrendingUp size={16} className="text-blue-500 mb-1" />
-                    </div>
-                </div>
-                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <h4 className="text-xs text-gray-500 uppercase font-semibold">Calf / Gift Farm (Monthly)</h4>
-                    <div className="flex justify-between items-end mt-2">
-                        <div>
-                            <span className="text-2xl font-bold text-gray-800 block">{vendorStats.calf.qty} L</span>
-                            <span className="text-sm font-medium text-orange-600">Rs {vendorStats.calf.rev}</span>
-                        </div>
-                        <TrendingUp size={16} className="text-orange-500 mb-1" />
-                    </div>
-                </div>
-            </div>
 
             {/* Tabs */}
             <div className="flex space-x-4 border-b border-gray-200 mb-6">
@@ -485,9 +440,12 @@ export default function Milk() {
                     <>
                         {/* Collective Form */}
                         <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
-                            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                                <FileText className="mr-2 text-primary" /> Log Sales
-                            </h2>
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                                    <FileText className="mr-2 text-primary" /> Log Sales
+                                </h2>
+                                <button type="button" onClick={() => setShowVendorModal(true)} className="text-sm text-primary hover:underline font-medium">Manage Vendors</button>
+                            </div>
                             <form onSubmit={handleDailySubmit}>
                                 <div className="grid grid-cols-1 gap-3 mb-4">
                                     {/* Date - Span Full Width now since session is gone */}
@@ -504,14 +462,35 @@ export default function Milk() {
                                             <div className="grid grid-cols-1 gap-3 mb-2">
                                                 <select
                                                     className="w-full p-2 border rounded bg-white text-sm"
-                                                    value={entry.vendorName}
-                                                    onChange={e => handleEntryChange(index, "vendorName", e.target.value)}
-                                                    required
+                                                    value={entry.isCustom ? "custom" : entry.vendorName}
+                                                    onChange={e => {
+                                                        if (e.target.value === "custom") {
+                                                            handleEntryChange(index, "isCustom", true);
+                                                            handleEntryChange(index, "vendorName", "");
+                                                            handleEntryChange(index, "vendorId", "");
+                                                            handleEntryChange(index, "pricePerLiter", "");
+                                                        } else {
+                                                            handleEntryChange(index, "isCustom", false);
+                                                            handleEntryChange(index, "vendorName", e.target.value);
+                                                        }
+                                                    }}
+                                                    required={!entry.isCustom}
                                                 >
-                                                    <option value="">Select Vendor...</option>
-                                                    {predefinedVendors.map(v => <option key={v} value={v}>{v}</option>)}
-                                                    {/* Append unique DB vendors not in predefined if needed */}
+                                                    <option value="" disabled>Select Vendor...</option>
+                                                    {vendors.map(v => <option key={v.id} value={v.name}>{v.name}</option>)}
+                                                    <option value="custom">Other (Temporary Vendor)</option>
                                                 </select>
+
+                                                {entry.isCustom && (
+                                                    <input
+                                                        type="text"
+                                                        className="w-full p-2 border rounded bg-white text-sm"
+                                                        placeholder="Enter Temporary Vendor Name..."
+                                                        value={entry.vendorName}
+                                                        onChange={e => handleEntryChange(index, "vendorName", e.target.value)}
+                                                        required
+                                                    />
+                                                )}
                                             </div>
                                             <div className="grid grid-cols-2 gap-3">
                                                 <input
@@ -530,9 +509,7 @@ export default function Milk() {
                                             )}
                                         </div>
                                     ))}
-                                    <button type="button" onClick={handleAddEntry} className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-primary hover:text-primary transition flex items-center justify-center text-sm font-medium">
-                                        <Plus size={16} className="mr-1" /> Add Another Vendor
-                                    </button>
+
                                 </div>
 
                                 <div className="bg-green-50 p-3 rounded-lg border border-green-100 flex justify-between items-center mb-4">
@@ -574,7 +551,7 @@ export default function Milk() {
 
                                 <select className="p-1.5 border rounded text-sm" value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}>
                                     <option value="All">All Vendors</option>
-                                    {predefinedVendors.map(v => <option key={v} value={v}>{v}</option>)}
+                                    {dynamicVendors.map(v => <option key={v} value={v}>{v}</option>)}
                                 </select>
                             </div>
 
@@ -824,6 +801,62 @@ export default function Milk() {
                     </>
                 )}
             </div>
+
+            {/* Manage Vendors Modal */}
+            {showVendorModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+                        <div className="flex justify-between items-center p-4 border-b">
+                            <h3 className="text-xl font-bold text-gray-800">Manage Permanent Vendors</h3>
+                            <button onClick={() => setShowVendorModal(false)} className="text-gray-500 hover:text-gray-700">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-4">
+                            <div className="flex gap-2 mb-6">
+                                <input
+                                    type="text"
+                                    placeholder="Vendor Name"
+                                    className="flex-1 p-2 border rounded"
+                                    value={newVendor.name}
+                                    onChange={e => setNewVendor({ ...newVendor, name: e.target.value })}
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Rate"
+                                    className="w-24 p-2 border rounded"
+                                    value={newVendor.defaultPrice}
+                                    onChange={e => setNewVendor({ ...newVendor, defaultPrice: e.target.value })}
+                                />
+                                <button onClick={handleSaveVendor} className="bg-primary text-white px-4 rounded hover:bg-green-700">
+                                    {editingVendorId ? "Update" : "Add"}
+                                </button>
+                            </div>
+
+                            <div className="max-h-60 overflow-y-auto">
+                                {vendors.length === 0 ? (
+                                    <p className="text-sm text-gray-500 text-center py-4">No permanent vendors found.</p>
+                                ) : (
+                                    <ul className="space-y-2">
+                                        {vendors.map(v => (
+                                            <li key={v.id} className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-100">
+                                                <div>
+                                                    <span className="font-semibold block">{v.name}</span>
+                                                    <span className="text-sm text-green-600">Fixed Rate: Rs {v.defaultPrice}</span>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button onClick={() => handleEditVendor(v)} className="text-blue-500 hover:bg-blue-100 p-1.5 rounded"><Edit2 size={16}/></button>
+                                                    <button onClick={() => handleDeleteVendor(v.id)} className="text-red-500 hover:bg-red-100 p-1.5 rounded"><Trash2 size={16}/></button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </Layout>
     );
 }

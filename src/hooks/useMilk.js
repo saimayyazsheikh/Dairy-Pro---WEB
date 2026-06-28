@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import { rtdb } from "../firebase";
 import { ref, onValue, push, remove, update, query, orderByChild, equalTo, get } from "firebase/database";
 
 export function useMilk() {
+    const { userData } = useAuth();
+    const farmId = userData?.farmId;
     const [milkRecords, setMilkRecords] = useState([]);
     const [performanceLogs, setPerformanceLogs] = useState([]);
     const [vendors, setVendors] = useState([]);
@@ -10,9 +13,10 @@ export function useMilk() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const milkRef = ref(rtdb, 'milk_records');
-        const perfRef = ref(rtdb, 'cow_performance_logs');
-        const vendorsRef = ref(rtdb, 'vendors');
+        if (!farmId) return;
+        const milkRef = ref(rtdb, `farms/${farmId}/milk_records`);
+        const perfRef = ref(rtdb, `farms/${farmId}/cow_performance_logs`);
+        const vendorsRef = ref(rtdb, `farms/${farmId}/vendors`);
 
         // Fetch Milk Records
         const unsubMilk = onValue(milkRef, (snapshot) => {
@@ -69,51 +73,19 @@ export function useMilk() {
             unsubPerf();
             unsubVendors();
         };
-    }, []);
+    }, [farmId]);
 
     // --- Actions ---
 
     const addMilkRecord = async (data) => {
         try {
-            const milkRef = ref(rtdb, 'milk_records');
-            const vendorsRef = ref(rtdb, 'vendors');
+            const milkRef = ref(rtdb, `farms/${farmId}/milk_records`);
 
             // 1. Add Record (Critical Path)
             await push(milkRef, {
                 ...data, // date, vendorId, vendorName, quantity, pricePerLiter, totalAmount, fat, snf, note
                 createdAt: new Date().toISOString()
             });
-
-            // 2. Update Vendor's Default Price (Non-Critical)
-            try {
-                if (data.vendorId) {
-                    // Check if vendorId is valid before updating
-                    const snapshot = await get(ref(rtdb, `vendors/${data.vendorId}`));
-                    if (snapshot.exists()) {
-                        await update(ref(rtdb, `vendors/${data.vendorId}`), {
-                            defaultPrice: parseFloat(data.pricePerLiter),
-                            updatedAt: new Date().toISOString()
-                        });
-                    }
-                } else if (data.vendorName) {
-                    const existingVendor = vendors.find(v => v.name.toLowerCase() === data.vendorName.toLowerCase());
-                    if (existingVendor) {
-                        await update(ref(rtdb, `vendors/${existingVendor.id}`), {
-                            defaultPrice: parseFloat(data.pricePerLiter),
-                            updatedAt: new Date().toISOString()
-                        });
-                    } else {
-                        // Create new vendor if not exists
-                        await push(vendorsRef, {
-                            name: data.vendorName,
-                            defaultPrice: parseFloat(data.pricePerLiter),
-                            createdAt: new Date().toISOString()
-                        });
-                    }
-                }
-            } catch (vendorErr) {
-                console.warn("Failed to update vendor price (non-critical):", vendorErr);
-            }
 
         } catch (err) {
             console.error("Error adding milk record:", err);
@@ -123,7 +95,7 @@ export function useMilk() {
 
     const deleteMilkRecord = async (id) => {
         try {
-            await remove(ref(rtdb, `milk_records/${id}`));
+            await remove(ref(rtdb, `farms/${farmId}/milk_records/${id}`));
         } catch (err) {
             throw err;
         }
@@ -131,7 +103,7 @@ export function useMilk() {
 
     const addPerformanceLog = async (data) => {
         try {
-            const perfRef = ref(rtdb, 'cow_performance_logs');
+            const perfRef = ref(rtdb, `farms/${farmId}/cow_performance_logs`);
             await push(perfRef, {
                 ...data, // date, cowId, cowTag, morningYield, eveningYield, nightYield, avgFat, avgSnf
                 createdAt: new Date().toISOString()
@@ -143,7 +115,7 @@ export function useMilk() {
 
     const updatePerformanceLog = async (id, data) => {
         try {
-            const perfRef = ref(rtdb, `cow_performance_logs/${id}`);
+            const perfRef = ref(rtdb, `farms/${farmId}/cow_performance_logs/${id}`);
             await update(perfRef, {
                 ...data
             });
@@ -154,7 +126,39 @@ export function useMilk() {
 
     const deletePerformanceLog = async (id) => {
         try {
-            await remove(ref(rtdb, `cow_performance_logs/${id}`));
+            await remove(ref(rtdb, `farms/${farmId}/cow_performance_logs/${id}`));
+        } catch (err) {
+            throw err;
+        }
+    };
+
+    const addVendor = async (data) => {
+        try {
+            const vendorsRef = ref(rtdb, `farms/${farmId}/vendors`);
+            await push(vendorsRef, {
+                name: data.name,
+                defaultPrice: parseFloat(data.defaultPrice),
+                createdAt: new Date().toISOString()
+            });
+        } catch (err) {
+            throw err;
+        }
+    };
+
+    const updateVendor = async (id, data) => {
+        try {
+            await update(ref(rtdb, `farms/${farmId}/vendors/${id}`), {
+                ...data,
+                updatedAt: new Date().toISOString()
+            });
+        } catch (err) {
+            throw err;
+        }
+    };
+
+    const deleteVendor = async (id) => {
+        try {
+            await remove(ref(rtdb, `farms/${farmId}/vendors/${id}`));
         } catch (err) {
             throw err;
         }
@@ -170,6 +174,9 @@ export function useMilk() {
         deleteMilkRecord,
         addPerformanceLog,
         updatePerformanceLog,
-        deletePerformanceLog
+        deletePerformanceLog,
+        addVendor,
+        updateVendor,
+        deleteVendor
     };
 }

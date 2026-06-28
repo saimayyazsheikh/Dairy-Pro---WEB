@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Milk, Stethoscope, Package, Menu, X, LogOut, Beef, Users, CircleDollarSign, Banknote } from "lucide-react";
+import { LayoutDashboard, Milk, Stethoscope, Package, Menu, X, LogOut, Beef, Users, CircleDollarSign, Settings } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import logo from "../assets/logo.png";
 
 export default function Sidebar() {
     const [isOpen, setIsOpen] = useState(false);
     const location = useLocation();
-    const { logout } = useAuth();
+    const { logout, farmData } = useAuth();
 
     const navItems = [
         { name: "Dashboard", icon: LayoutDashboard, path: "/" },
@@ -17,6 +17,7 @@ export default function Sidebar() {
         { name: "Inventory", icon: Package, path: "/inventory" },
         { name: "HR Management", icon: Users, path: "/hr" },
         { name: "Expenses", icon: CircleDollarSign, path: "/finance" },
+        { name: "Settings", icon: Settings, path: "/settings" },
     ];
 
     const handleLogout = async () => {
@@ -31,7 +32,8 @@ export default function Sidebar() {
         <>
             {/* Mobile Menu Button */}
             <button
-                className="md:hidden fixed top-4 right-4 z-50 p-2 bg-primary text-white rounded shadow-lg"
+                className="md:hidden fixed right-4 z-50 p-2 bg-primary text-white rounded shadow-lg"
+                style={{ top: 'max(1rem, env(safe-area-inset-top))' }}
                 onClick={() => setIsOpen(!isOpen)}
             >
                 {isOpen ? <X size={24} /> : <Menu size={24} />}
@@ -41,13 +43,16 @@ export default function Sidebar() {
             <div
                 className={`fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full"
                     } md:translate-x-0`}
+                style={{ paddingTop: 'env(safe-area-inset-top)' }}
             >
                 <div className="flex flex-col h-full">
                     <div className="flex flex-col items-center justify-center py-6 border-b gap-2 bg-gradient-to-b from-green-50/50 to-transparent shrink-0">
                         <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary/20 shadow-md flex items-center justify-center bg-white p-0.5">
-                            <img src={logo} alt="Ayyaz Dairy Farm" className="w-full h-full object-cover rounded-full" />
+                            <img src={logo} alt="Dairy Farm Logo" className="w-full h-full object-cover rounded-full" />
                         </div>
-                        <span className="font-bold text-gray-800 text-base tracking-wide">Ayyaz Dairy Farm</span>
+                        <span className="font-bold text-gray-800 text-base tracking-wide text-center px-4">
+                            {farmData?.farmName || "Loading..."}
+                        </span>
                     </div>
 
                     <nav className="flex-1 overflow-y-auto py-4">
