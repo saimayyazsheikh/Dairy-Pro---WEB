@@ -5,14 +5,14 @@ import { getStorage } from "firebase/storage";
 import { getDatabase } from "firebase/database";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAfh3p-JACVcSw1OGOa2g0ixHm8hbYIUEs",
-  authDomain: "dairypro-5eef3.firebaseapp.com",
-  databaseURL: "https://dairypro-5eef3-default-rtdb.firebaseio.com",
-  projectId: "dairypro-5eef3",
-  storageBucket: "dairypro-5eef3.firebasestorage.app",
-  messagingSenderId: "226880100501",
-  appId: "1:226880100501:web:b61aa1462fa289c0a1a39c",
-  measurementId: "G-9GG84Q13V1"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 let app;
