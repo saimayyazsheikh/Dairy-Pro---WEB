@@ -1,6 +1,8 @@
-# Dairy Pro Management System
+# Dairy Pro
 
-![Dairy Pro](https://placehold.co/800x200?text=Dairy+Pro+Management+System)
+<div align="center">
+  <img src="src/assets/logo.png" alt="Dairy Pro Logo" width="250"/>
+</div>
 
 A comprehensive, mobile-responsive web application designed to digitize and streamline operations for Dairy Pro. This system manages livestock, milk production, health records, inventory, HR, and finances in a centralized platform.
 
